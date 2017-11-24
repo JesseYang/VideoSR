@@ -18,3 +18,25 @@ def sub_pixel_upscale(X, r, color=False):
     else:
         X = _phase_shift(X, r)
     return X
+
+
+def backward_warping(img, coords):
+    """Backward warping
+
+    # Arguments
+        img: of shape (H, W, C)
+        coords: of shape (H', W', C)
+    """
+    pass
+
+@layer_register(log_shape=True)
+def ForwardWarping(inputs, borderMode='repeat'):
+    image, mapping = inputs
+    assert image.get_shape().ndims == 4 and mapping.get_shape().ndims == 4
+    input_shape = image.get_shape().as_list()[1:]
+    assert None not in input_shape, \
+        "Images in ImageSample layer must have fully-defined shape"
+    assert borderMode in ['repeat', 'constant']
+
+    sampled = tf.scatter_nd_add()
+    return sampled

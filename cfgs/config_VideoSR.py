@@ -11,3 +11,6 @@ cfg.fine_flow = edict()
 cfg.fine_flow.k_size = [5, 3, 3, 3, 3]
 cfg.fine_flow.ch_out = [24, 24, 24, 24, 8]
 cfg.fine_flow.stide = [2, 1, 1, 1, 1]
+
+
+cfg.upscale_factor = 4
