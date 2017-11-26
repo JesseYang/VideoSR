@@ -2,30 +2,33 @@ import tensorflow as tf
 from tensorpack import *
 from tensorpack import ImageSample as BackwardWarping
 from ..utils import sub_pixel_upscale
+from ..cfgs.config import cfg
+
 
 def coarse_flow_estimation(l):
-    for layer_idx in range(len(cfg.coarse_flow.k_size)):
+    for layer_idx in range(len(cfg.motion_estimation.coarse_flow.k_size)):
         l = Conv2D('Coarse flow conv.{}'.format(layer_idx),
                     l,
-                    out_channel = cfg.coarse_flow.ch_out[layer_idx],
+                    out_channel = cfg.motion_estimation.coarse_flow.ch_out[layer_idx],
                     kernel_shape = tuple([cfg.coarse_flow.k_size[layer_idx] * 2]),
-                    stride = cfg.coarse_flow.stride[layer_idx],
-                    padding = 'same' if cfg.coarse_flow.stride[layer_idx] == 1 else 'valid',
-                    nl = tf.nn.relu if layer_idx != len(cfg.coarse_flow.k_size) - 1 else tf.tanh
+                    stride = cfg.motion_estimation.coarse_flow.stride[layer_idx],
+                    padding = 'same' if cfg.motion_estimation.coarse_flow.stride[layer_idx] == 1 else 'valid',
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.tanh
             )
     # sub-pixel upscale X4
     l = sub_pixel_upscale(l, 4, True)
     return l
 
+
 def fine_flow_estimation(l):
-    for layer_idx in range(len(cfg.fine_flow.k_size)):
+    for layer_idx in range(len(cfg.motion_estimation.fine_flow.k_size)):
         l = Conv2D('Fine flow conv.{}'.format(layer_idx),
                     l,
-                    out_channel = cfg.fine_flow.ch_out[layer_idx],
-                    kernel_shape = tuple([cfg.fine_flow.k_size[layer_idx] * 2]),
-                    stride = cfg.fine_flow.stride[layer_idx],
-                    padding = 'same' if cfg.fine_flow.stride[layer_idx] == 1 else 'valid',
-                    nl = tf.nn.relu if layer_idx != len(cfg.coarse_flow.k_size) - 1 else tf.tanh
+                    out_channel = cfg.motion_estimation.fine_flow.ch_out[layer_idx],
+                    kernel_shape = tuple([cfg.motion_estimation.fine_flow.k_size[layer_idx] * 2]),
+                    stride = cfg.motion_estimation.fine_flow.stride[layer_idx],
+                    padding = 'same' if cfg.motion_estimation.fine_flow.stride[layer_idx] == 1 else 'valid',
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.tanh
             )
     # sub-pixel upscale X2
     l = sub_pixel_upscale(l, 2, True)
