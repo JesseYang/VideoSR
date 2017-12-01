@@ -1,8 +1,8 @@
 import tensorflow as tf
 from tensorpack import *
 from tensorpack import ImageSample as BackwardWarping
-from ..utils import sub_pixel_upscale
-from ..cfgs.config import cfg
+from utils import sub_pixel_upscale
+from cfgs.config import cfg
 
 
 def coarse_flow_estimation(l):

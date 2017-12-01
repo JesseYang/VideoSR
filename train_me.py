@@ -15,25 +15,6 @@ class MotionEstimation(ModelDesc):
         l = me(l)
         image = image / 255.0 - 0.5  # bhw2
 
-        def get_stn(image):
-            stn = (LinearWrap(image)
-                   .AvgPooling('downsample', 2)
-                   .Conv2D('conv0', 20, 5, padding='VALID')
-                   .MaxPooling('pool0', 2)
-                   .Conv2D('conv1', 20, 5, padding='VALID')
-                   .FullyConnected('fc1', out_dim=32)
-                   .FullyConnected('fct', out_dim=6, nl=tf.identity,
-                                   W_init=tf.constant_initializer(),
-                                   b_init=tf.constant_initializer([1, 0, HALF_DIFF, 0, 1, HALF_DIFF]))())
-            # output 6 parameters for affine transformation
-            stn = tf.reshape(stn, [-1, 2, 3], name='affine')  # bx2x3
-            stn = tf.reshape(tf.transpose(stn, [2, 0, 1]), [3, -1])  # 3 x (bx2)
-            coor = tf.reshape(tf.matmul(xys, stn),
-                              [WARP_TARGET_SIZE, WARP_TARGET_SIZE, -1, 2])
-            coor = tf.transpose(coor, [2, 0, 1, 3], 'sampled_coords')  # b h w 2
-            sampled = ImageSample('warp', [image, coor], borderMode='constant')
-            return sampled
-
         with argscope([Conv2D, FullyConnected], nl=tf.nn.relu):
             with tf.variable_scope('STN1'):
                 sampled1 = get_stn(image)
@@ -76,3 +57,93 @@ class MotionEstimation(ModelDesc):
             opt, [
                 gradproc.ScaleGradient(('STN.*', 0.1)),
                 gradproc.SummaryGradient()])
+
+def get_data(train_or_test, multi_scale, batch_size):
+    isTrain = train_or_test == 'train'
+
+    filename_list = cfg.train_list if isTrain else cfg.test_list
+    ds = Data(filename_list, shuffle=isTrain, flip=isTrain, affine_trans=isTrain, use_multi_scale=isTrain and multi_scale, period=batch_size*10)
+
+    if isTrain:
+        augmentors = [
+            imgaug.RandomOrderAug(
+                [imgaug.Brightness(30, clip=False),
+                 imgaug.Contrast((0.8, 1.2), clip=False),
+                 imgaug.Saturation(0.4),
+                 imgaug.Lighting(0.1,
+                                 eigval=[0.2175, 0.0188, 0.0045][::-1],
+                                 eigvec=np.array(
+                                     [[-0.5675, 0.7192, 0.4009],
+                                      [-0.5808, -0.0045, -0.8140],
+                                      [-0.5836, -0.6948, 0.4203]],
+                                     dtype='float32')[::-1, ::-1]
+                                 )]),
+            imgaug.Clip(),
+            imgaug.ToUint8()
+        ]
+    else:
+        augmentors = [
+            imgaug.ToUint8()
+        ]
+    ds = AugmentImageComponent(ds, augmentors)
+    ds = BatchData(ds, batch_size, remainder=not isTrain)
+    if isTrain and multi_scale == False:
+        ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
+    return ds
+
+
+def get_config(args):
+    if args.gpu != None:
+        NR_GPU = len(args.gpu.split(','))
+        batch_size = int(args.batch_size) // NR_GPU
+    else:
+        batch_size = int(args.batch_size)
+
+    ds_train = get_data('train', args.multi_scale, batch_size)
+    ds_test = get_data('test', False, batch_size)
+
+    callbacks = [
+      ModelSaver(),
+
+
+      ScheduledHyperParamSetter('learning_rate',
+                                [(0, 1e-4), (3, 2e-4), (6, 3e-4), (10, 6e-4), (15, 1e-3), (60, 1e-4), (90, 1e-5)]),
+      ScheduledHyperParamSetter('unseen_scale',
+                                [(0, cfg.unseen_scale), (cfg.unseen_epochs, 0)]),
+      HumanHyperParamSetter('learning_rate'),
+    ]
+    if cfg.mAP == True:
+        callbacks.append(PeriodicTrigger(InferenceRunner(ds_test, [CalMAP(cfg.test_list)]),
+                                         every_k_epochs=3))
+    if args.debug:
+      callbacks.append(HookToCallback(tf_debug.LocalCLIDebugHook()))
+    return TrainConfig(
+        dataflow=ds_train,
+        callbacks=callbacks,
+        model=Model(args.data_format),
+        max_epoch=cfg.max_epoch,
+    )
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
+    parser.add_argument('--load', help='load model')
+    parser.add_argument('--log_dir', help="directory of logging", default=None)
+    args = parser.parse_args()
+    if args.log_dir != None:
+        logger.set_logger_dir(os.path.join("train_log", args.log_dir))
+    else:
+        logger.auto_set_dir()
+    ds_train = get_data("train")
+    ds_test = get_data("test")
+    config = get_config(ds_train, ds_test)
+    if args.gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+        NR_GPU = len(args.gpu.split(','))
+        BATCH_SIZE = BATCH_SIZE // NR_GPU
+        config.nr_tower = NR_GPU
+    if args.load:
+        config.session_init = SaverRestore(args.load)
+    SimpleTrainer(config).train()
