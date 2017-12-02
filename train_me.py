@@ -15,30 +15,6 @@ class MotionEstimation(ModelDesc):
         l = me(l)
         image = image / 255.0 - 0.5  # bhw2
 
-        with argscope([Conv2D, FullyConnected], nl=tf.nn.relu):
-            with tf.variable_scope('STN1'):
-                sampled1 = get_stn(image)
-            with tf.variable_scope('STN2'):
-                sampled2 = get_stn(image)
-
-        # For visualization in tensorboard
-        with tf.name_scope('visualization'):
-            padded1 = tf.pad(sampled1, [[0, 0], [HALF_DIFF, HALF_DIFF], [HALF_DIFF, HALF_DIFF], [0, 0]])
-            padded2 = tf.pad(sampled2, [[0, 0], [HALF_DIFF, HALF_DIFF], [HALF_DIFF, HALF_DIFF], [0, 0]])
-            img_orig = tf.concat([image[:, :, :, 0], image[:, :, :, 1]], 1)  # b x 2h  x w
-            transform1 = tf.concat([padded1[:, :, :, 0], padded1[:, :, :, 1]], 1)
-            transform2 = tf.concat([padded2[:, :, :, 0], padded2[:, :, :, 1]], 1)
-            stacked = tf.concat([img_orig, transform1, transform2], 2, 'viz')
-            tf.summary.image('visualize',
-                             tf.expand_dims(stacked, -1), max_outputs=30)
-
-        sampled = tf.concat([sampled1, sampled2], 3, 'sampled_concat')
-        logits = (LinearWrap(sampled)
-                  .FullyConnected('fc1', out_dim=256, nl=tf.nn.relu)
-                  .FullyConnected('fc2', out_dim=128, nl=tf.nn.relu)
-                  .FullyConnected('fct', out_dim=19, nl=tf.identity)())
-        tf.nn.softmax(logits, name='prob')
-
         cost = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=label)
         cost = tf.reduce_mean(cost, name='cross_entropy_loss')
 

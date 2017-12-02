@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorpack import *
-from ..cell import ConvLSTMCell
-from ..cfgs.config import cfg
+from cell import ConvLSTMCell
+from cfgs.config import cfg
 
 def detail_fusion_net(img_i, img_0):
     upsampled_img_0 = tf.image.resize_images(images = img_0,
