@@ -1,13 +1,25 @@
 from tensorpack import *
+import numpy as np
+from cfgs.config import cfg
+from scipy import misc
 
 def build_tensors(frames, gap = 1):
     return [np.stack((frames[i],frames[i+1]), axis = -1) for i in range(len(frames)-1)]
 
+def read_data(content):
+    print(content)
+    frame1_path, frame2_path = content.split()
+    print(frame1_path, frame2_path)
+    frame1 = misc.imread(frame1_path, mode = 'L')
+    frame2 = misc.imread(frame2_path, mode = 'L')
+    res = np.stack((frame1, frame2), axis = -1)
+    print(res.shape)
+    quit()
+    return [frames_stack, label]
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, flip, affine_trans, use_multi_scale, period):
         self.filename_list = filename_list
-        self.use_multi_scale = use_multi_scale
         self.period = period
 
         if isinstance(filename_list, list) == False:
@@ -31,22 +43,17 @@ class Data(RNGDataFlow):
         if self.shuffle:
             self.rng.shuffle(idxs)
         image_num = 0
-        image_height = cfg.img_h
-        image_width = cfg.img_w
-        for k in idxs:
-            yield self.generate_sample(k, image_height, image_width)
-            image_num += 1
-            if self.use_multi_scale and image_num % self.period == 0:
-                multi_scale_idx = int(random.random() * len(cfg.multi_scale))
-                image_height = cfg.multi_scale[multi_scale_idx][0]
-                image_width = cfg.multi_scale[multi_scale_idx][1]
+        # image_height = cfg.img_h
+        # image_width = cfg.img_w
+        for each_path_pair in self.imglist:
+            yield read_data(each_path_pair)
 
     def reset_state(self):
         super(Data, self).reset_state()
 
 
 if __name__ == '__main__':
-    df = Data('doc_train.txt', shuffle=False, flip=False, affine_trans=False, use_multi_scale=True, period=8*10)
+    df = Data('data_train.txt', shuffle=False, flip=False, affine_trans=False, use_multi_scale=True, period=8*10)
     df.reset_state()
     g = df.get_data()
     for i in g:

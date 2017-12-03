@@ -78,13 +78,15 @@ def ForwardWarping(inputs, borderMode='repeat'):
 
     # 得到左上角、右上角、左下角、右下角的点的坐标
     coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right = get_neighbours(mapping)
-    # 到左上角的距离，diff_y和
     diff = mapping - coords_upper_left
     neg_diff = 1.0 - diff
     diff_y, diff_x = tf.split(diff, 2, 3)
     neg_diff_y, neg_diff_x = tf.split(neg_diff, 2, 3)
+    # diff_y到左上角/右上角y的差, diff_x到左上角/左下角x的差, neg_diff_y到左下角/右下角y的差, neg_diff_x到右上角/右下角x的差
 
-    tf.maximum
+    # bilinear interpolation
+    
+    tf.maximum(0, 1 - tf.abs(x))
     tf.scatter_nd_add()
 
     ret = sample(img, coords)
