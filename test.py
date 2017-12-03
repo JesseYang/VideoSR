@@ -62,6 +62,11 @@ def ME_motion_estimation():
     tf_j = tf.placeholder(tf.float32, shape = (1, 100, 100, 1))
     l = motion_estimation(tf_i, tf_j)
     print(l)
+    print('----------------------------------\n\n')
+    with tf.Session() as sess:
+        i = np.zeros((1, 100, 100, 1))
+        j = np.zeros((1, 100, 100, 1))
+        print(sess.run(l, {tf_i: i, tf_j: j}))
 
 
 # SPMC
@@ -86,13 +91,13 @@ def SPMC_spmc_layer():
 
 
 if __name__ == '__main__':
-    UTILS_sub_pixel_upscale()
+    # UTILS_sub_pixel_upscale()
     # UTILS_get_neighbours()
     # UTILS_sample()
 
     # ME_coarse_flow_estimation()
     # ME_fine_flow_estimation()
-    # ME_motion_estimation()
+    ME_motion_estimation()
 
     # SPMC_sampling_grid_generator()
     # SPMC_differentiable_image_sampler()

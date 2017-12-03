@@ -75,10 +75,10 @@ def ForwardWarping(inputs, borderMode='repeat'):
     shape = tf.constant([]) # image.shape，其中H,W扩大了
     # tf.maximum(0, 1 - tf.abs(x))
     res = tf.add_n([
-        tf.scatter_nd(indices = coords_upper_left, updates = image * diff_x * diff_y, shape = shape),
-        tf.scatter_nd(indices = coords_upper_right, updates = image * neg_diff_x * diff_y, shape = shape),
-        tf.scatter_nd(indices = coords_lower_left, updates = image * diff_x * neg_diff_y, shape = shape),
-        tf.scatter_nd(indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y, shape = shape)
+        tf.scatter_nd_add(ref = shape, indices = coords_upper_left, updates = image * diff_x * diff_y),
+        tf.scatter_nd_add(ref = shape, indices = coords_upper_right, updates = image * neg_diff_x * diff_y),
+        tf.scatter_nd_add(ref = shape, indices = coords_lower_left, updates = image * diff_x * neg_diff_y),
+        tf.scatter_nd_add(ref = shape, indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y)
     ])
     # ref = tf.scatter_nd_add(ref, coords_upper_left, image * diff_x * diff_y)
     # ref = tf.scatter_nd_add(ref, coords_upper_right, image * neg_diff_x * diff_y)

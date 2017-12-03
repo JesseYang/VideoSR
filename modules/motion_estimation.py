@@ -12,7 +12,7 @@ def coarse_flow_estimation(l):
                     kernel_shape = tuple([cfg.motion_estimation.coarse_flow.k_size[layer_idx]] * 2),
                     stride = cfg.motion_estimation.coarse_flow.stride[layer_idx],
                     padding = 'same',
-                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.tanh
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh
             )
     # sub-pixel upscale X4
     l = sub_pixel_upscale(l, 4, True)
@@ -27,7 +27,7 @@ def fine_flow_estimation(l):
                     kernel_shape = tuple([cfg.motion_estimation.fine_flow.k_size[layer_idx]] * 2),
                     stride = cfg.motion_estimation.fine_flow.stride[layer_idx],
                     padding = 'same',
-                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.tanh
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh
             )
     # sub-pixel upscale X2
     l = sub_pixel_upscale(l, 2, True)

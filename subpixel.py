@@ -27,12 +27,12 @@ def PS(X, r, color=False):
 if __name__ == "__main__":
     with tf.Session() as sess:
         x = np.arange(2*16*16).reshape(2, 8, 8, 4)
-        X = tf.placeholder("float32", shape=(2, 8, 8, 4), name="X")# tf.Variable(x, name="X")
+        X = tf.placeholder("float32", shape=(2, 8, 8, 4), name="X") # tf.Variable(x, name="X")
         Y = PS(X, 2)
         y = sess.run(Y, feed_dict={X: x})
 
         x2 = np.arange(2*3*16*16).reshape(2, 8, 8, 4*3)
-        X2 = tf.placeholder("float32", shape=(2, 8, 8, 4*3), name="X")# tf.Variable(x, name="X")
+        X2 = tf.placeholder("float32", shape=(2, 8, 8, 4*3), name="X") # tf.Variable(x, name="X")
         Y2 = PS(X2, 2, color=True)
         y2 = sess.run(Y2, feed_dict={X2: x2})
         print(y2.shape)
