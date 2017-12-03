@@ -1,0 +1,2 @@
+[32m[1203 16:52:34 @logger.py:74][0m Argv: train_me.py --batch_size 8
+[32m[1203 16:52:34 @imgproc.py:228][0m [5m[31mWRN[0m Saturation() now assumes rgb=False, but will by default use rgb=True in the future!

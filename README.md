@@ -2,11 +2,9 @@
 
 # TODOs
 
-- [ ] modules/motion_estimation.py
-- [ ] reader.py
-- [ ] train_me.py
-- [ ] modules/spmc_layer.py
-- [ ] detail_fusion_net.py
+- [ ] Motion Estimation
+- [ ] SPMC layer
+- [ ] Detail Fusion Net
 
 
 # Results

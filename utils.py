@@ -3,6 +3,7 @@ import numpy as np
 from tensorpack import *
 
 def _phase_shift(I, r):
+    print(I.get_shape().as_list())
     bsize, a, b, c = I.get_shape().as_list()
     bsize = tf.shape(I)[0] # Handling Dimension(None) type for undefined batch dim
     X = tf.reshape(I, (bsize, a, b, r, r))
@@ -20,22 +21,6 @@ def sub_pixel_upscale(X, r, color=False):
     else:
         X = _phase_shift(X, r)
     return X
-
-def sample(img, coords):
-    """
-    Args:
-        img: bxhxwxc
-        coords: bxh2xw2x2. each coordinate is (y, x) integer.
-            Out of boundary coordinates will be clipped.
-    Return:
-        bxh2xw2xc image
-    """
-    shape = img.get_shape().as_list()[1:]   # h, w, c
-    batch = tf.shape(img)[0]
-    shape2 = coords.get_shape().as_list()[1:3]  # h2, w2
-    indices = tf.concat([], axis = 3)
-    sampled = tf.scatter_nd_add()
-
 
 def get_neighbours_np(coords):
     """返回coords对应的neighbours，顺序为：左上、右上、左下、右下
@@ -85,9 +70,19 @@ def ForwardWarping(inputs, borderMode='repeat'):
     # diff_y到左上角/右上角y的差, diff_x到左上角/左下角x的差, neg_diff_y到左下角/右下角y的差, neg_diff_x到右上角/右下角x的差
 
     # bilinear interpolation
-    
-    tf.maximum(0, 1 - tf.abs(x))
-    tf.scatter_nd_add()
 
-    ret = sample(img, coords)
-    return ret
+    # 接下来要使用`tf.scatter_nd_add`, define a new tensor
+    shape = tf.constant([]) # image.shape，其中H,W扩大了
+    # tf.maximum(0, 1 - tf.abs(x))
+    res = tf.add_n([
+        tf.scatter_nd(indices = coords_upper_left, updates = image * diff_x * diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_upper_right, updates = image * neg_diff_x * diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_lower_left, updates = image * diff_x * neg_diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y, shape = shape)
+    ])
+    # ref = tf.scatter_nd_add(ref, coords_upper_left, image * diff_x * diff_y)
+    # ref = tf.scatter_nd_add(ref, coords_upper_right, image * neg_diff_x * diff_y)
+    # ref = tf.scatter_nd_add(ref, coords_lower_left, image * diff_x * neg_diff_y)
+    # ref = tf.scatter_nd_add(ref, coords_lower_right, image * neg_diff_x * neg_diff_y)
+
+    return res

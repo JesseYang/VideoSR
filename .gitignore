@@ -2,3 +2,5 @@
 *__pycache__
 raw_data
 data
+.ipynb_checkpoints
+data_*.txt

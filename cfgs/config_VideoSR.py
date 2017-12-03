@@ -31,6 +31,11 @@ cfg.detail_fusion_net.decoder.ch_out = [128, 64, 64, 32, 32, 1]
 cfg.detail_fusion_net.decoder.stride = [1, 2, 1, 2, 1, 1]
 cfg.detail_fusion_net.decoder.type = ['conv', 'deconv', 'conv', 'deconv', 'conv', 'conv']
 
+# Motion Estimation
+cfg.lambda1 = 0.01
+cfg.me_max_iteration = 70000
+cfg.me_batch_size = 0
+cfg.spmc_max_iteration = 20000
 
-
-
+cfg.train_list = ['data_train.txt']
+cfg.test_list = 'data_test.txt'
