@@ -1,5 +1,6 @@
 from tensorpack import *
 from modules.motion_estimation import motion_estimation as me
+from tensorpack import ImageSample as BackwardWarping
 from cfgs.config import cfg
 from reader import Data
 import numpy as np
@@ -11,30 +12,20 @@ BATCH_SIZE = 8
 
 class MotionEstimation(ModelDesc):
     def _get_inputs(self):
-        return [InputDesc(tf.float32, (None, None, None, 1), 'frame_i'),
-                InputDesc(tf.float32, (None, None, None, 1), 'frame_j'),
+        return [InputDesc(tf.float32, (None, None, None, 1), 'I_0'),
+                InputDesc(tf.float32, (None, None, None, 1), 'I_i'),
                 ]
 
     def _build_graph(self, inputs):
-        frame_i, frame_j = inputs
-        frame_i = frame_i / 255.0 - 0.5 # shape of (b, h, w, 1)
-        frame_j = frame_j / 255.0 - 0.5
-        print(frame_i, frame_j)
-        l = me(frame_i, frame_j)
-        print(l)
-
-        # cost = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=label)
-        # cost = tf.reduce_mean(cost, name='cross_entropy_loss')
-        cost = 0
-
-        # wrong = tf.to_float(tf.logical_not(tf.nn.in_top_k(logits, label, 1)), name='incorrect_vector')
-        # summary.add_moving_summary(tf.reduce_mean(wrong, name='train_error'))
-
-        wd_cost = tf.multiply(1e-5, regularize_cost('fc.*/W', tf.nn.l2_loss),
-                              name='regularize_loss')
-        summary.add_moving_summary(cost, wd_cost)
-        self.cost = 0 + cfg.lambda1 * (0)
-        self.cost = tf.add_n([wd_cost, cost], name='cost')
+        I_0, I_i = inputs
+        I_i = I_i / 255.0 - 0.5 # shape of (b, h, w, 1)
+        I_0 = I_0 / 255.0 - 0.5 # shape of (b, h, w, 1)
+        F_i0 = me(I_0, I_i)
+        I_0i = BackwardWarping([frame_0,f_i0], borderMode='constant')
+        # I_0i: (b, h, w, 1), I_i: (b, h, w, 1)
+        # after reduce_sum: ()
+        cost = tf.reduce_sum(I_i - I_0i) + cfg.lambda1 * tf.reduce_sum(f_i0)
+        self.cost = tf.identity(cost, name='cost')
 
     def _get_optimizer(self):
         lr = tf.get_variable('learning_rate', initializer=1e-4, trainable=False)
@@ -52,20 +43,7 @@ def get_data(train_or_test, batch_size):
 
     if isTrain:
         augmentors = [
-            # imgaug.RandomOrderAug(
-            #     [imgaug.Brightness(30, clip=False),
-            #      imgaug.Contrast((0.8, 1.2), clip=False),
-            #      imgaug.Saturation(0.4),
-            #      imgaug.Lighting(0.1,
-            #                      eigval=[0.2175, 0.0188, 0.0045][::-1],
-            #                      eigvec=np.array(
-            #                          [[-0.5675, 0.7192, 0.4009],
-            #                           [-0.5808, -0.0045, -0.8140],
-            #                           [-0.5836, -0.6948, 0.4203]],
-            #                          dtype='float32')[::-1, ::-1]
-            #                      )]),
-            # imgaug.Clip(),
-            # imgaug.ToUint8()
+            imgaug.ToUint8()
         ]
     else:
         augmentors = [

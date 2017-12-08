@@ -43,8 +43,8 @@ def get_neighbours(coords):
     # Arguments
         coords: coords是H*W*2的矩阵，coords[v,u]的[y, x]表明原图坐标为[v,u]的像素应移动到[y,x]处
     """
-    coords_lower_right = tf.ceil(coords)
-    coords_upper_left = tf.floor(coords)
+    coords_lower_right = tf.cast(tf.ceil(coords), tf.int32)
+    coords_upper_left = tf.cast(tf.floor(coords), tf.int32)
     ys_upper, xs_left = tf.split(coords_upper_left, 2, axis = -1)
     ys_lower, xs_right = tf.split(coords_lower_right, 2, axis = -1)
     coords_lower_left = tf.concat((ys_lower, xs_left), axis = -1)
@@ -63,7 +63,8 @@ def ForwardWarping(inputs, borderMode='repeat'):
 
     # 得到左上角、右上角、左下角、右下角的点的坐标
     coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right = get_neighbours(mapping)
-    diff = mapping - coords_upper_left
+    print(coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right, sep = '\n')
+    diff = mapping - tf.cast(coords_upper_left, tf.float32)
     neg_diff = 1.0 - diff
     diff_y, diff_x = tf.split(diff, 2, 3)
     neg_diff_y, neg_diff_x = tf.split(neg_diff, 2, 3)
@@ -72,13 +73,13 @@ def ForwardWarping(inputs, borderMode='repeat'):
     # bilinear interpolation
 
     # 接下来要使用`tf.scatter_nd_add`, define a new tensor
-    shape = tf.constant([]) # image.shape，其中H,W扩大了
+    shape = tf.Variable(tf.zeros_like(image)) # (b, h, w, 1)
     # tf.maximum(0, 1 - tf.abs(x))
     res = tf.add_n([
-        tf.scatter_nd_add(ref = shape, indices = coords_upper_left, updates = image * diff_x * diff_y),
-        tf.scatter_nd_add(ref = shape, indices = coords_upper_right, updates = image * neg_diff_x * diff_y),
-        tf.scatter_nd_add(ref = shape, indices = coords_lower_left, updates = image * diff_x * neg_diff_y),
-        tf.scatter_nd_add(ref = shape, indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y)
+        tf.scatter_nd_add(ref = shape, indices = [coords_upper_left], updates = image * diff_x * diff_y),
+        tf.scatter_nd_add(ref = shape, indices = [coords_upper_right], updates = image * neg_diff_x * diff_y),
+        tf.scatter_nd_add(ref = shape, indices = [coords_lower_left], updates = image * diff_x * neg_diff_y),
+        tf.scatter_nd_add(ref = shape, indices = [coords_lower_right], updates = image * neg_diff_x * neg_diff_y)
     ])
     # ref = tf.scatter_nd_add(ref, coords_upper_left, image * diff_x * diff_y)
     # ref = tf.scatter_nd_add(ref, coords_upper_right, image * neg_diff_x * diff_y)
