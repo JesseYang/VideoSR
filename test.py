@@ -3,21 +3,6 @@ import numpy as np
 from scipy import misc
 # utils
 from utils import *
-from subpixel import PS
-def UTILS_sub_pixel_upscale():
-    with tf.Session() as sess:
-        x = np.arange(2*16*16).reshape(2, 8, 8, 4)
-        X = tf.placeholder("float32", shape=(2, 8, 8, 4), name="X")# tf.Variable(x, name="X")
-        Y = PS(X, 2)
-        y = sess.run(Y, feed_dict={X: x})
-
-        x2 = np.arange(2*3*16*16).reshape(2, 8, 8, 4*3)
-        X2 = tf.placeholder("float32", shape=(2, 8, 8, 4*3), name="X")# tf.Variable(x, name="X")
-        Y2 = PS(X2, 2, color=True)
-        y2 = sess.run(Y2, feed_dict={X2: x2})
-        print(y2.shape)
-    plt.imshow(y[0, :, :, 0], interpolation="none")
-    plt.show()
 def UTILS_get_neighbours():
     coords = tf.constant([[[1.3,2.6]]])
     l = get_neighbours(coords)
@@ -32,13 +17,14 @@ def UTILS_sample():
     with tf.Session() as sess:
         print(sess.run(scatter))
 def UTILS_scatter():
-    ref = tf.Variable([1, 2, 3, 4, 5, 6, 7, 8])
-    indices = tf.constant([[4], [3], [1], [7]])
-    updates = tf.constant([9, 10, 11, 12])
-    add = tf.scatter_nd_add(ref, indices, updates)
-    print(add)
-    # with tf.Session() as sess:
-    #     print(sess.run(add, feed_dict = {ref: ref}))
+    indices = tf.constant([[0,0,0,0],[0,0,2,0],[0,0,1,0]])# tf.ones([1,1,1,1])
+    updates = tf.constant([4,5,6])# tf.reshape(tf.ones([2,5,5,1]), [-1])
+    shape = tf.constant([2, 5, 5, 1])
+    print(indices, updates, shape, sep = '\n')
+    scatter = tf.scatter_nd(indices, updates, shape)
+    print(scatter)
+    with tf.Session() as sess:
+        print(sess.run(scatter))
 def UTILS_forward_warping():
     img = tf.placeholder(tf.float32, shape = (1, 100, 100, 1))
     mapping = tf.placeholder(tf.float32, shape = (1, 100, 100, 2))
@@ -46,9 +32,22 @@ def UTILS_forward_warping():
     with tf.Session() as sess:
         img_np = np.zeros((1, 100, 100, 1))
         img_np[:,40:60,40:60,:] = 255
-        mapping_np = np.zeros((1, 100, 100, 2))
-        mapping_np[:,40:60,40:60,:] += 50
-        res = sess.run(forward_warping, feed_dict = {inputs: [img_np, mapping_np]})
+        # mapping_np = np.zeros((1, 100, 100, 2))
+        # mapping_np[:,40:60,40:60,:] += 50
+        rows = np.arange(100)
+        cols = np.arange(100)
+        coords = np.empty((len(rows), len(cols), 2), dtype=np.intp)
+        coords[..., 0] = rows[:, None]
+        coords[..., 1] = cols
+        coords = np.expand_dims(coords, axis = 0)
+        mapping_np = coords
+        mapping_np[:,50:60,50:60,0] += 40
+
+        res = sess.run(forward_warping, feed_dict = {img: img_np, mapping: mapping_np})
+
+        res = np.reshape(res, (100, 100))
+        img = np.reshape(img_np, (100,100))
+        misc.imsave('img.png', img)
         misc.imsave('forward_warped.png', res)
 
 
@@ -101,11 +100,10 @@ def SPMC_spmc_layer():
 
 
 if __name__ == '__main__':
-    # UTILS_sub_pixel_upscale()
     # UTILS_get_neighbours()
     # UTILS_sample()
-    UTILS_scatter()
-    # UTILS_forward_warping()
+    # UTILS_scatter()
+    UTILS_forward_warping()
 
     # ME_coarse_flow_estimation()
     # ME_fine_flow_estimation()

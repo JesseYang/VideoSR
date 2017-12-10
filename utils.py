@@ -2,26 +2,6 @@ import tensorflow as tf
 import numpy as np
 from tensorpack import *
 
-def _phase_shift(I, r):
-    print(I.get_shape().as_list())
-    bsize, a, b, c = I.get_shape().as_list()
-    bsize = tf.shape(I)[0] # Handling Dimension(None) type for undefined batch dim
-    X = tf.reshape(I, (bsize, a, b, r, r))
-    X = tf.transpose(X, (0, 1, 2, 4, 3))  # bsize, a, b, 1, 1
-    X = tf.split(1, a, X)  # a, [bsize, b, r, r]
-    X = tf.concat(2, [tf.squeeze(x, axis=1) for x in X])  # bsize, b, a*r, r
-    X = tf.split(1, b, X)  # b, [bsize, a*r, r]
-    X = tf.concat(2, [tf.squeeze(x, axis=1) for x in X])  # bsize, a*r, b*r
-    return tf.reshape(X, (bsize, a*r, b*r, 1))
-
-def sub_pixel_upscale(X, r, color=False):
-    if color:
-        Xc = tf.split(3, 3, X)
-        X = tf.concat(3, [_phase_shift(x, r) for x in Xc])
-    else:
-        X = _phase_shift(X, r)
-    return X
-
 def get_neighbours_np(coords):
     """返回coords对应的neighbours，顺序为：左上、右上、左下、右下
     
@@ -63,7 +43,6 @@ def ForwardWarping(inputs, borderMode='repeat'):
 
     # 得到左上角、右上角、左下角、右下角的点的坐标
     coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right = get_neighbours(mapping)
-    print(coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right, sep = '\n')
     diff = mapping - tf.cast(coords_upper_left, tf.float32)
     neg_diff = 1.0 - diff
     diff_y, diff_x = tf.split(diff, 2, 3)
@@ -73,17 +52,46 @@ def ForwardWarping(inputs, borderMode='repeat'):
     # bilinear interpolation
 
     # 接下来要使用`tf.scatter_nd_add`, define a new tensor
-    shape = tf.Variable(tf.zeros_like(image)) # (b, h, w, 1)
+    shape = tf.shape(image)# tf.Variable(initial_value = tf.zeros_like(image)) # (b, h, w, 1)
     # tf.maximum(0, 1 - tf.abs(x))
+    b = tf.shape(mapping)[0]
+    h, w = mapping.get_shape().as_list()[1:3]
+    batch_idx = tf.range(b, dtype = tf.int32)
+    batch_idx = tf.reshape(batch_idx, [-1,1,1,1]) # (b,1,1,1)
+    batch_idx = tf.tile(batch_idx, [1, h, w, 1]) # (b,h,w,1)
+    # 如果b = 2, h = 2, w = 2, 则coords大概是这样
+    # [
+    #     [
+    #         [[1,2], [3,4]]
+    #         [[5,6], [7,8]]
+    #     ],
+    #     [
+    #         [[1,1], [2,2]]
+    #         [[3,3], [4,4]]
+    #     ]
+    # ]
+    # 现在为了作scatter的indices参数，要变成这样
+    # [
+    #     [0,1,2,0], [0,3,4,0], [0,5,6,0], [0,7,8,0],
+    #     [1,1,1,0], [1,2,2,0], [1,3,3,0], [1,4,4,0]
+    # ]
+    # (b, h, w, 1)
+    coords_upper_left = tf.concat([batch_idx, coords_lower_left], axis=3) # (b,h,w,3)
+    coords_upper_right = tf.concat([batch_idx, coords_upper_right], axis=3) # (b,h,w,3)
+    coords_lower_left = tf.concat([batch_idx, coords_lower_left], axis=3) # (b,h,w,3)
+    coords_lower_right = tf.concat([batch_idx, coords_lower_right], axis=3) # (b,h,w,3)
+
+    # 上面仿tensorpack的写法， (b,h,w,3)的可用
     res = tf.add_n([
-        tf.scatter_nd_add(ref = shape, indices = [coords_upper_left], updates = image * diff_x * diff_y),
-        tf.scatter_nd_add(ref = shape, indices = [coords_upper_right], updates = image * neg_diff_x * diff_y),
-        tf.scatter_nd_add(ref = shape, indices = [coords_lower_left], updates = image * diff_x * neg_diff_y),
-        tf.scatter_nd_add(ref = shape, indices = [coords_lower_right], updates = image * neg_diff_x * neg_diff_y)
+        tf.scatter_nd(indices = coords_upper_left, updates = image * diff_x * diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_upper_right, updates = image * neg_diff_x * diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_lower_left, updates = image * diff_x * neg_diff_y, shape = shape),
+        tf.scatter_nd(indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y, shape = shape)
+    
+        # tf.scatter_nd_add(ref = shape, indices = coords_upper_left, updates = image * diff_x * diff_y),
+        # tf.scatter_nd_add(ref = shape, indices = coords_upper_right, updates = image * neg_diff_x * diff_y),
+        # tf.scatter_nd_add(ref = shape, indices = coords_lower_left, updates = image * diff_x * neg_diff_y),
+        # tf.scatter_nd_add(ref = shape, indices = coords_lower_right, updates = image * neg_diff_x * neg_diff_y)
     ])
-    # ref = tf.scatter_nd_add(ref, coords_upper_left, image * diff_x * diff_y)
-    # ref = tf.scatter_nd_add(ref, coords_upper_right, image * neg_diff_x * diff_y)
-    # ref = tf.scatter_nd_add(ref, coords_lower_left, image * diff_x * neg_diff_y)
-    # ref = tf.scatter_nd_add(ref, coords_lower_right, image * neg_diff_x * neg_diff_y)
 
     return res

@@ -6,6 +6,9 @@ import numpy as np
 def _phase_shift(I, r):
     bsize, a, b, c = I.get_shape().as_list()
     bsize = tf.shape(I)[0] # Handling Dimension(None) type for undefined batch dim
+    # a = tf.shape(I)[1]
+    # b = tf.shape(I)[2]
+
     X = tf.reshape(I, (bsize, a, b, r, r))
     X = tf.transpose(X, (0, 1, 2, 4, 3))  # bsize, a, b, 1, 1
     X = tf.split(X, a, 1)
@@ -18,6 +21,7 @@ def _phase_shift(I, r):
 def PS(X, r, color=False):
     if color:
         Xc = tf.split(X, 2, 3)
+        print(Xc)
         X = tf.concat([_phase_shift(x, r) for x in Xc], 3)
     else:
         X = _phase_shift(X, r)

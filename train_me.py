@@ -12,8 +12,8 @@ BATCH_SIZE = 8
 
 class MotionEstimation(ModelDesc):
     def _get_inputs(self):
-        return [InputDesc(tf.float32, (None, None, None, 1), 'I_0'),
-                InputDesc(tf.float32, (None, None, None, 1), 'I_i'),
+        return [InputDesc(tf.float32, (None, 100, 100, 1), 'I_0'),
+                InputDesc(tf.float32, (None, 100, 100, 1), 'I_i'),
                 ]
 
     def _build_graph(self, inputs):
@@ -21,10 +21,12 @@ class MotionEstimation(ModelDesc):
         I_i = I_i / 255.0 - 0.5 # shape of (b, h, w, 1)
         I_0 = I_0 / 255.0 - 0.5 # shape of (b, h, w, 1)
         F_i0 = me(I_0, I_i)
-        I_0i = BackwardWarping([frame_0,f_i0], borderMode='constant')
+        print('F_i0', F_i0)
+        I_0i = BackwardWarping('I_0i', [I_0,F_i0], borderMode='constant')
+        # tf.image_summary()
         # I_0i: (b, h, w, 1), I_i: (b, h, w, 1)
         # after reduce_sum: ()
-        cost = tf.reduce_sum(I_i - I_0i) + cfg.lambda1 * tf.reduce_sum(f_i0)
+        cost = tf.reduce_sum(I_i - I_0i) + cfg.lambda1 * tf.reduce_sum(F_i0)
         self.cost = tf.identity(cost, name='cost')
 
     def _get_optimizer(self):
@@ -84,10 +86,10 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
-    parser.add_argument('--load', help='load model')
-    parser.add_argument('--batch_size', help='load model')
-    parser.add_argument('--log_dir', help="directory of logging", default=None)
+    parser.add_argument('--gpu', help = 'comma separated list of GPU(s) to use.', default='0,1')
+    parser.add_argument('--load', help = 'load model')
+    parser.add_argument('--batch_size', help = 'batch size', default = 8)
+    parser.add_argument('--log_dir', help = 'directory of logging', default = None)
     args = parser.parse_args()
     if args.log_dir != None:
         logger.set_logger_dir(os.path.join("train_log", args.log_dir))

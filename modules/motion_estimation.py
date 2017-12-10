@@ -15,7 +15,9 @@ def coarse_flow_estimation(l):
                     nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh
             )
     # sub-pixel upscale X4
+    print(l)
     l = sub_pixel_upscale(l, 4, True)
+    print(l)
     return l
 
 
@@ -44,4 +46,4 @@ def motion_estimation(I_i, I_j):
     delta = delta_c + delta_f
     sampled = BackwardWarping('warp.2', [I_j, delta], borderMode='constant')
 
-    return sampled
+    return delta

@@ -14,5 +14,5 @@ def differentiable_image_sampler(l):
 
 
 def spmc_layer(img, mapping):
-    sampled = ForwardWarping(img, mapping)
+    sampled = ForwardWarping('forward',[img, mapping])
     return sampled

@@ -2,14 +2,19 @@ from tensorpack import *
 import numpy as np
 from cfgs.config import cfg
 from scipy import misc
+import cv2
 
 def read_data(content):
     frame1_path, frame2_path = content.split()
     frame1 = misc.imread(frame1_path, mode = 'L')
     frame2 = misc.imread(frame2_path, mode = 'L')
+
+    frame1 = cv2.resize(frame1, (100, 100))
+    frame2 = cv2.resize(frame2, (100, 100))
+
     frame1 = np.expand_dims(frame1, -1)
     frame2 = np.expand_dims(frame2, -1)
-    return frame1, frame2
+    return [frame1, frame2]
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, affine_trans):

@@ -1,2 +1,0 @@
-[32m[1203 16:54:19 @logger.py:74][0m Argv: train_me.py --batch_size 8
-[32m[1203 16:54:19 @param.py:189][0m Use train_log/train_me1203-165419/hyper.txt to set hyperparam: 'learning_rate'.
