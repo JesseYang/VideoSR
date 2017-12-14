@@ -3,21 +3,24 @@ import numpy as np
 from cfgs.config import cfg
 from scipy import misc
 import cv2
+from MessUp.operations import Crop
+
+H = cfg.h * cfg.upscale_factor
+W = cfg.w * cfg.upscale_factor
+h = cfg.h
+w = cfg.w
+crop = Crop(crop_px = (H, W))
 
 def read_data(content):
-    frame1_path, frame2_path = content.split()
-    frame1 = misc.imread(frame1_path, mode = 'L')
-    frame2 = misc.imread(frame2_path, mode = 'L')
-
-    frame1 = cv2.resize(frame1, (100, 100))
-    frame2 = cv2.resize(frame2, (100, 100))
-
-    frame1 = np.expand_dims(frame1, -1)
-    frame2 = np.expand_dims(frame2, -1)
-    return [frame1, frame2]
+    frame_paths = content.split(',')
+    frames = (misc.imread(i, mode = 'L') for i in frame_paths)
+    frames = (crop(i) for i in frames)
+    frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
+    return np.concatenate(frames, axis=0)
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, affine_trans):
+        super(Data, self).__init__()
         self.filename_list = filename_list
 
         if not isinstance(filename_list, list):
@@ -37,8 +40,6 @@ class Data(RNGDataFlow):
 
     def get_data(self):
         idxs = np.arange(len(self.imglist))
-        if self.shuffle:
-            self.rng.shuffle(idxs)
         image_num = 0
         for each_path_pair in self.imglist:
             yield read_data(each_path_pair)
@@ -52,4 +53,4 @@ if __name__ == '__main__':
     df.reset_state()
     g = df.get_data()
     for i in g:
-        print(i[0].shape, i[1].shape)
+        print(i.shape)

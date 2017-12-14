@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from scipy import misc
+from cfgs.config import cfg
+
 # utils
 from utils import *
 def UTILS_get_neighbours():
@@ -97,13 +99,24 @@ def SPMC_differentiable_image_sampler():
 def SPMC_spmc_layer():
     return 0
 
+from modules.detail_fusion_net import *
+def DF():
+    hr_sparses = tf.placeholder(tf.float32, shape = (8, cfg.frames, cfg.h * cfg.upscale_factor, cfg.w * cfg.upscale_factor, 1))
+    referenced = tf.placeholder(tf.float32, shape = (8, cfg.h, cfg.w, 1))
+    output = detail_fusion_net(hr_sparses, referenced)
+    #     shape = [25, 25]
+    # filters = 128
+    # kernel = [3, 3]
+    # cell = ConvLSTMCell(shape, filters, kernel, activation = tf.nn.relu)
+    # print(cell)
+    # l = tf.nn.dynamic_rnn(cell, l, dtype = l.dtype)
 
 
 if __name__ == '__main__':
     # UTILS_get_neighbours()
     # UTILS_sample()
     # UTILS_scatter()
-    UTILS_forward_warping()
+    # UTILS_forward_warping()
 
     # ME_coarse_flow_estimation()
     # ME_fine_flow_estimation()
@@ -112,3 +125,5 @@ if __name__ == '__main__':
     # SPMC_sampling_grid_generator()
     # SPMC_differentiable_image_sampler()
     # SPMC_spmc_layer()
+
+    DF()

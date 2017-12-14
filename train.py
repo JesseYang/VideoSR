@@ -13,6 +13,9 @@ from tensorpack.tfutils.summary import *
 
 BATCH_SIZE = 8
 
+h = cfg.h
+w = cfg.w
+
 class Model(ModelDesc):
     def __init__(self, stage = None):
         self.stage = 1
@@ -20,51 +23,43 @@ class Model(ModelDesc):
 
     def _get_inputs(self):
         return [
-            InputDesc(tf.float32, (None, None, None, None), 'lr_imgs'),
-            InputDesc(tf.float32, (None, None, None, 1), 'reference_lr_img'),
+            # (b, t, h, w, c)
+            InputDesc(tf.float32, (None, None, None, None, 1), 'lr_imgs'),
+            # (b, h, w, c)
             InputDesc(tf.float32, (None, None, None, 1), 'hr_img')
         ]
 
     def _build_graph(self, inputs):
-        I_0, I_i = inputs
-        I_i = I_i / 255.0 - 0.5 # shape of (b, h, w, 1)
-        I_0 = I_0 / 255.0 - 0.5 # shape of (b, h, w, 1)
         lr_imgs, hr_img = inputs
-        # assert()
-        tf.split(lr_imgs, tf.shape(lr_imgs)[-1], axis = 3)
+        # (b, t, h, w, c) to (b, h, w, c) * t
+        list_lr_imgs = tf.split(lr_imgs, cfg.frames, axis = 1)
+        reshaped = [tf.reshape(i, (-1, h, w, 1)) / 255.0 - 0.5 for i in list_lr_imgs]
+        referenced = reshaped[cfg.frames // 2]
 
         hr_sparses = []
         flows = []
-        for i in lr_imgs:
-            # flow_i0 = motion_estimation()
-            hr_sparse = spmc_layer(I_i, F_i0)
-            hr_dense = detail_fusion_net(i, I_0)
+        with tf.variable_scope("ME_SPMC") as scope:
+            for i in reshaped:
+                flow_i0 = motion_estimation(referenced, i)
+                flows.append(flow_i0)
+                hr_sparses.append(spmc_layer(i, flow_i0))
+                scope.reuse_variables()
+        hr_denses = detail_fusion_net(hr_sparses, referenced)
 
-
-        F_i0 = motion_estimation(I_0, I_i)
-        hr_sparses = spmc_layer(I_i, F_i0)
-        hr_sparses = [hr_sparse, hr_sparse]
-        hr_denses = []
-        for i in hr_sparses:
-            hr_denses.append(detail_fusion_net(i, I_0))
-        
         prediction = tf.identity(hr_denses[-1], name = 'predictions')
 
-        add_moving_summary()
+        # add_moving_summary()
         
-        print('F_i0', F_i0)
-        I_0i = BackwardWarping('I_0i', [I_0,F_i0], borderMode='constant')
+        # I_0i = BackwardWarping('I_0i', [I_0,F_i0], borderMode='constant')
 
         tf.summary.image('groundtruth', hr_img, max_outputs=5)
-        tf.summary.image('reference_frame', label_img, max_outputs=5)
-        tf.summary.image('output', label_img, max_outputs=5)
+        tf.summary.image('reference_frame', referenced, max_outputs=5)
+        tf.summary.image('output', prediction, max_outputs=5)
 
         # I_0i: (b, h, w, 1), I_i: (b, h, w, 1)
         # after reduce_sum: ()
-        loss_me = tf.reduce_sum(I_i - I_0i) + cfg.lambda1 * tf.reduce_sum(F_i0)
+        loss_me = tf.reduce_sum([tf.reduce_sum(tf.abs(reshaped[i] - BackwardWarping('backward_warpped', [referenced, flows[i]], borderMode='constant'))) + cfg.lambda1 * tf.reduce_sum(flows[i]) for i in range(cfg.frames)])
         loss_sr = 0
-        cost = tf.reduce_sum(I_i - I_0i) + cfg.lambda1 * tf.reduce_sum(F_i0)
-        self.cost = tf.identity(cost, name='cost')
 
         if self.stage == 1:
             cost = loss_me
@@ -76,7 +71,6 @@ class Model(ModelDesc):
             raise RuntimeError()
 
         self.cost = tf.identity(cost, name='cost')
-
     def _get_optimizer(self):
         lr = tf.get_variable('learning_rate', initializer=1e-4, trainable=False)
         opt = tf.train.AdamOptimizer(lr, epsilon=1e-3)
@@ -100,9 +94,8 @@ def get_data(train_or_test, batch_size):
             imgaug.ToUint8()
         ]
     ds = AugmentImageComponent(ds, augmentors)
-    ds = BatchData(ds, batch_size, remainder=not isTrain)
-    if isTrain:
-        ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
+    ds = BatchData(ds, batch_size, remainder=not isTrain, use_list = False)
+
     return ds
 
 
@@ -133,25 +126,33 @@ def get_config(args):
     )
 
 if __name__ == '__main__':
-    import argparse
+    # import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
-    parser.add_argument('--load', help='load model')
-    parser.add_argument('--batch_size', help='load model')
-    parser.add_argument('--log_dir', help="directory of logging", default=None)
-    args = parser.parse_args()
-    if args.log_dir != None:
-        logger.set_logger_dir(os.path.join("train_log", args.log_dir))
-    else:
-        logger.auto_set_dir()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
+    # parser.add_argument('--load', help='load model')
+    # parser.add_argument('--batch_size', help='load model', default = 8)
+    # parser.add_argument('--log_dir', help="directory of logging", default=None)
+    # args = parser.parse_args()
+    # if args.log_dir != None:
+    #     logger.set_logger_dir(os.path.join("train_log", args.log_dir))
+    # else:
+    #     logger.auto_set_dir()
 
-    config = get_config(args)
-    if args.gpu:
-        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-        NR_GPU = len(args.gpu.split(','))
-        BATCH_SIZE = BATCH_SIZE // NR_GPU
-        config.nr_tower = NR_GPU
-    if args.load:
-        config.session_init = SaverRestore(args.load)
-    SyncMultiGPUTrainer(config).train()
+    # config = get_config(args)
+    # if args.gpu:
+    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+    #     NR_GPU = len(args.gpu.split(','))
+    #     BATCH_SIZE = BATCH_SIZE // NR_GPU
+    #     config.nr_tower = NR_GPU
+    # if args.load:
+    #     config.session_init = SaverRestore(args.load)
+    # SyncMultiGPUTrainer(config).train()
+
+
+    data = get_data('train', 8)
+    for i in data.get_data():
+        # print(i.shape)
+        print(len(i))
+        print(*[j.shape for j in i])
+        quit()

@@ -35,9 +35,6 @@ class ConvLSTMCell(tf.nn.rnn_cell.RNNCell):
 
   def call(self, x, state):
     c, h = state
-
-    print(self._feature_axis)
-    print(x, h, sep = '\n')
     x = tf.concat([x, h], axis=self._feature_axis)
     n = x.shape[-1].value
     m = 4 * self._filters if self._filters > 1 else 4

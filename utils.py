@@ -2,6 +2,11 @@ import tensorflow as tf
 import numpy as np
 from tensorpack import *
 
+from cfgs.config import cfg
+
+H = cfg.h * cfg.upscale_factor
+W = cfg.w * cfg.upscale_factor
+
 def get_neighbours_np(coords):
     """返回coords对应的neighbours，顺序为：左上、右上、左下、右下
     
@@ -52,7 +57,7 @@ def ForwardWarping(inputs, borderMode='repeat'):
     # bilinear interpolation
 
     # 接下来要使用`tf.scatter_nd_add`, define a new tensor
-    shape = tf.shape(image)# tf.Variable(initial_value = tf.zeros_like(image)) # (b, h, w, 1)
+    shape = (tf.shape(image)[0], H, W, 1)# tf.Variable(initial_value = tf.zeros_like(image)) # (b, h, w, 1)
     # tf.maximum(0, 1 - tf.abs(x))
     b = tf.shape(mapping)[0]
     h, w = mapping.get_shape().as_list()[1:3]
