@@ -16,7 +16,7 @@ def read_data(content):
     frames = (misc.imread(i, mode = 'L') for i in frame_paths)
     frames = (crop(i) for i in frames)
     frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
-    return np.concatenate(frames, axis=0)
+    return [np.concatenate(frames, axis=0)]
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, affine_trans):
