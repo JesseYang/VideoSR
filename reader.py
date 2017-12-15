@@ -14,9 +14,13 @@ crop = Crop(crop_px = (H, W))
 def read_data(content):
     frame_paths = content.split(',')
     frames = (misc.imread(i, mode = 'L') for i in frame_paths)
-    frames = (crop(i) for i in frames)
-    frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
-    return [np.concatenate(frames, axis=0)]
+    frames = [crop(i) for i in frames]
+    resized = (cv2.resize(i, (h, w)) for i in frames)
+    resized = [np.reshape(i, (1, h, w, 1)) for i in resized]
+    # frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
+    referenced = frames[cfg.frames // 2]
+    referenced = np.reshape(referenced, (H, W, 1))
+    return [np.concatenate(resized, axis=0), referenced]
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, affine_trans):

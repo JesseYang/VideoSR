@@ -15,12 +15,10 @@ BATCH_SIZE = 8
 
 h = cfg.h
 w = cfg.w
-
+k_range = [0.5, 1.0]
 class Model(ModelDesc):
     def __init__(self, stage = None):
         self.stage = 1
-        pass
-
     def _get_inputs(self):
         return [
             # (b, t, h, w, c)
@@ -28,7 +26,6 @@ class Model(ModelDesc):
             # (b, h, w, c)
             InputDesc(tf.float32, (None, None, None, 1), 'hr_img')
         ]
-
     def _build_graph(self, inputs):
         lr_imgs, hr_img = inputs
         # (b, t, h, w, c) to (b, h, w, c) * t
@@ -52,15 +49,11 @@ class Model(ModelDesc):
         
         # I_0i = BackwardWarping('I_0i', [I_0,F_i0], borderMode='constant')
 
-        tf.summary.image('groundtruth', hr_img, max_outputs=5)
-        tf.summary.image('reference_frame', referenced, max_outputs=5)
-        tf.summary.image('output', prediction, max_outputs=5)
 
-        # I_0i: (b, h, w, 1), I_i: (b, h, w, 1)
-        # after reduce_sum: ()
+
         loss_me = tf.reduce_sum([tf.reduce_sum(tf.abs(reshaped[i] - BackwardWarping('backward_warpped', [referenced, flows[i]], borderMode='constant'))) + cfg.lambda1 * tf.reduce_sum(flows[i]) for i in range(cfg.frames)])
-        loss_sr = 0
-
+        loss_sr = tf.reduce_sum(tf.stack([tf.reduce_sum(tf.abs(hr_img - i)) for i in hr_denses]) * tf.range(*k_range, cfg.frames))
+        
         if self.stage == 1:
             cost = loss_me
         elif self.stage == 2:
@@ -71,29 +64,24 @@ class Model(ModelDesc):
             raise RuntimeError()
 
         self.cost = tf.identity(cost, name='cost')
+# ========================================== Summary ==========================================
+        tf.summary.image('groundtruth', hr_img, max_outputs=5)
+        tf.summary.image('reference_frame', referenced, max_outputs=5)
+        tf.summary.image('output', prediction, max_outputs=5)
+        add_moving_summary([
+            tf.identity(loss_me, name = 'loss_me'),
+            tf.identity(loss_sr, name = 'loss_sr'),
+            self.cost])
+
     def _get_optimizer(self):
         lr = tf.get_variable('learning_rate', initializer=1e-4, trainable=False)
         opt = tf.train.AdamOptimizer(lr, epsilon=1e-3)
-        return optimizer.apply_grad_processors(
-            opt, [
-                gradproc.ScaleGradient(('STN.*', 0.1)),
-                gradproc.SummaryGradient()])
+        return opt
 
 def get_data(train_or_test, batch_size):
     isTrain = train_or_test == 'train'
-
     filename_list = cfg.train_list if isTrain else cfg.test_list
     ds = Data(filename_list, shuffle=isTrain, affine_trans=isTrain)
-
-    if isTrain:
-        augmentors = [
-            imgaug.ToUint8()
-        ]
-    else:
-        augmentors = [
-            imgaug.ToUint8()
-        ]
-    ds = AugmentImageComponent(ds, augmentors)
     ds = BatchData(ds, batch_size, remainder=not isTrain, use_list = False)
 
     return ds
@@ -122,37 +110,29 @@ def get_config(args):
         dataflow = ds_train,
         callbacks = callbacks,
         model = Model(stage = 1),
-        max_epoch = cfg.me_max_iteration // batch_size + 1
+        max_epoch = cfg.me_max_iteration * batch_size - ds_train.size()
     )
 
 if __name__ == '__main__':
-    # import argparse
+    import argparse
 
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
-    # parser.add_argument('--load', help='load model')
-    # parser.add_argument('--batch_size', help='load model', default = 8)
-    # parser.add_argument('--log_dir', help="directory of logging", default=None)
-    # args = parser.parse_args()
-    # if args.log_dir != None:
-    #     logger.set_logger_dir(os.path.join("train_log", args.log_dir))
-    # else:
-    #     logger.auto_set_dir()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
+    parser.add_argument('--load', help='load model')
+    parser.add_argument('--batch_size', help='load model', default = 8)
+    parser.add_argument('--log_dir', help="directory of logging", default=None)
+    args = parser.parse_args()
+    if args.log_dir != None:
+        logger.set_logger_dir(os.path.join("train_log", args.log_dir))
+    else:
+        logger.auto_set_dir()
 
-    # config = get_config(args)
-    # if args.gpu:
-    #     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    #     NR_GPU = len(args.gpu.split(','))
-    #     BATCH_SIZE = BATCH_SIZE // NR_GPU
-    #     config.nr_tower = NR_GPU
-    # if args.load:
-    #     config.session_init = SaverRestore(args.load)
-    # SyncMultiGPUTrainer(config).train()
-
-
-    data = get_data('train', 8)
-    for i in data.get_data():
-        # print(i.shape)
-        print(len(i))
-        print(*[j.shape for j in i])
-        quit()
+    config = get_config(args)
+    if args.gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+        NR_GPU = len(args.gpu.split(','))
+        BATCH_SIZE = BATCH_SIZE // NR_GPU
+        config.nr_tower = NR_GPU
+    if args.load:
+        config.session_init = SaverRestore(args.load)
+    SyncMultiGPUTrainer(config).train()

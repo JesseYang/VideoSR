@@ -27,7 +27,7 @@ def predict(args):
     model = Model()
     predict_config = PredictConfig(session_init=sess_init,
                                    model=model,
-                                   input_names=['lr_imgs', 'reference_lr_img'],
+                                   input_names=['lr_imgs'],
                                    output_names=["predictions"])
     predict_func = OfflinePredictor(predict_config)
     pass
