@@ -4,9 +4,6 @@ import os
 import sys
 import argparse
 from collections import Counter
-import operator
-import six
-from six.moves import map, range
 import json
 
 from tensorpack import *

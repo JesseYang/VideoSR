@@ -27,6 +27,24 @@ def UTILS_scatter():
     print(scatter)
     with tf.Session() as sess:
         print(sess.run(scatter))
+
+def UTILS_backward_warping():
+    img = tf.placeholder(tf.float32, shape = (1, 100, 100, 1))
+    mapping = tf.placeholder(tf.float32, shape = (1, 100, 100, 2))
+    backward_warping = BackwardWarping('fw', [img, mapping], borderMode='repeat')
+    with tf.Session() as sess:
+        img_np = np.reshape(misc.imread('forward_warped.png', mode = 'L'), (1,100,100,1))
+        rows = np.arange(100)
+        cols = np.arange(100)
+        coords = np.empty((len(rows), len(cols), 2), dtype=np.intp)
+        coords[..., 0] = rows[:, None]
+        coords[..., 1] = cols
+        coords = np.expand_dims(coords, axis = 0)
+        mapping_np = coords
+        mapping_np[:,50:60,50:60,0] += 40
+        res = sess.run(backward_warping, feed_dict = {img: img_np, mapping: mapping_np})
+        res = np.reshape(res, (100, 100))
+        misc.imsave('backward_warped.png', res)
 def UTILS_forward_warping():
     img = tf.placeholder(tf.float32, shape = (1, 100, 100, 1))
     mapping = tf.placeholder(tf.float32, shape = (1, 100, 100, 2))
@@ -116,6 +134,7 @@ if __name__ == '__main__':
     # UTILS_get_neighbours()
     # UTILS_sample()
     # UTILS_scatter()
+    UTILS_backward_warping()
     # UTILS_forward_warping()
 
     # ME_coarse_flow_estimation()
@@ -126,4 +145,4 @@ if __name__ == '__main__':
     # SPMC_differentiable_image_sampler()
     # SPMC_spmc_layer()
 
-    DF()
+    # DF()

@@ -1,8 +1,12 @@
 from tensorpack import *
 from tensorpack import ImageSample as BackwardWarping
-from subpixel import PS as sub_pixel_upscale
 from cfgs.config import cfg
 import tensorflow as tf
+import numpy as np
+from utils import get_coords
+
+h = cfg.h
+w = cfg.w
 
 def coarse_flow_estimation(l):
     for layer_idx in range(len(cfg.motion_estimation.coarse_flow.k_size)):
@@ -12,10 +16,10 @@ def coarse_flow_estimation(l):
                     kernel_shape = tuple([cfg.motion_estimation.coarse_flow.k_size[layer_idx]] * 2),
                     stride = cfg.motion_estimation.coarse_flow.stride[layer_idx],
                     padding = 'same',
-                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh,
+                    W_init = tf.contrib.layers.xavier_initializer()
             )
-    # sub-pixel upscale X4
-    l = sub_pixel_upscale(l, 4, True)
+    l = tf.depth_to_space(l, 4) # (b, h*4, w*4, c/16)
     return l
 
 
@@ -27,21 +31,22 @@ def fine_flow_estimation(l):
                     kernel_shape = tuple([cfg.motion_estimation.fine_flow.k_size[layer_idx]] * 2),
                     stride = cfg.motion_estimation.fine_flow.stride[layer_idx],
                     padding = 'same',
-                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh
+                    nl = tf.nn.relu if layer_idx != len(cfg.motion_estimation.coarse_flow.k_size) - 1 else tf.nn.tanh,
+                    W_init = tf.contrib.layers.xavier_initializer()
             )
-    # sub-pixel upscale X2
-    l = sub_pixel_upscale(l, 2, True)
+    l = tf.depth_to_space(l, 2) # (b, h*2, w*2, c/4)
     return l
 
 
-def motion_estimation(I_i, I_j):
-    l = tf.concat((I_i, I_j), axis = -1)
-    delta_c = coarse_flow_estimation(l)
-    delta_c_x, delta_c_y = tf.split(delta_c, num_or_size_splits = 2, axis = -1)
-    sampled = BackwardWarping('warp.1', [I_j, delta_c], borderMode='constant')
-    l = tf.concat((I_i, I_j, delta_c_x, delta_c_y, sampled), axis = -1)
-    delta_f = fine_flow_estimation(l)
-    delta = delta_c + delta_f
-    sampled = BackwardWarping('warp.2', [I_j, delta], borderMode='constant')
+def motion_estimation(reference, img):
+    """compute optical flow from img to reference
+    """
+    l = tf.concat((reference, img), axis = -1) # (b, h, w, 2)
+    coarse_flow = coarse_flow_estimation(l) # (b, h, w, 2)
+    coords = get_coords(h, w) # (b, h, w, 2)
+    mapping = coords - coarse_flow
+    sampled = BackwardWarping('warp.1', [reference, mapping], borderMode='constant') # (b, h, w, 1)
+    l = tf.concat((reference, img, coarse_flow, sampled), axis = -1) # (b, h, w, 5)
+    fine_flow = fine_flow_estimation(l) # (b, h, w, 2)
 
-    return delta
+    return coarse_flow + fine_flow # (b, h, w, 2)

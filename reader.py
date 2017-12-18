@@ -3,18 +3,25 @@ import numpy as np
 from cfgs.config import cfg
 from scipy import misc
 import cv2
-from MessUp.operations import Crop
-
+import random
 H = cfg.h * cfg.upscale_factor
 W = cfg.w * cfg.upscale_factor
 h = cfg.h
 w = cfg.w
-crop = Crop(crop_px = (H, W))
+def random_crop(imgs, crop_h, crop_w):
+    h, w = imgs[0].shape[:2]
 
+    h_start = random.randint(0, h - crop_h - 1)
+    w_start = random.randint(0, w - crop_w - 1)
+
+    res = [img[h_start:h_start + crop_h, w_start:w_start + crop_w] for img in imgs]
+    
+    return res
 def read_data(content):
     frame_paths = content.split(',')
-    frames = (misc.imread(i, mode = 'L') for i in frame_paths)
-    frames = [crop(i) for i in frames]
+    frames = [misc.imread(i, mode = 'L') for i in frame_paths]
+    # crop = Crop(crop_px = (H, W))
+    frames = [i[100:300,100:300] for i in frames] # random_crop(frames, H, W)
     resized = (cv2.resize(i, (h, w)) for i in frames)
     resized = [np.reshape(i, (1, h, w, 1)) for i in resized]
     # frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
@@ -57,4 +64,4 @@ if __name__ == '__main__':
     df.reset_state()
     g = df.get_data()
     for i in g:
-        print(i.shape)
+        print(i[0].shape, i[1].shape)

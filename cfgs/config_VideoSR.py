@@ -4,9 +4,9 @@ cfg = edict()
 
 # model
 cfg.frames = 5
-cfg.h = 128
-cfg.w = 128
-cfg.upscale_factor = 4
+cfg.h = 100
+cfg.w = 100
+cfg.upscale_factor = 2
 
 # Motion Estimation module
 cfg.motion_estimation = edict()
@@ -37,6 +37,7 @@ cfg.detail_fusion_net.decoder.type = ['conv', 'deconv', 'conv', 'deconv', 'conv'
 # Train
 # Motion Estimation
 cfg.lambda1 = 0.01
+cfg.lambda2 = 1
 cfg.me_max_iteration = 70000
 cfg.me_batch_size = 0
 cfg.spmc_max_iteration = 20000

@@ -6,7 +6,20 @@ from cfgs.config import cfg
 
 H = cfg.h * cfg.upscale_factor
 W = cfg.w * cfg.upscale_factor
+def get_coords(h, w):
+    """get coords matrix of x
+    # Arguments
+        h
+        w
+    
+    # Returns
+        coords: (h, w, 2)
+    """
+    coords = np.empty((h, w, 2), dtype = np.int)
+    coords[..., 0] = np.arange(h)[:, None]
+    coords[..., 1] = np.arange(w)
 
+    return coords
 def get_neighbours_np(coords):
     """返回coords对应的neighbours，顺序为：左上、右上、左下、右下
     
@@ -100,3 +113,15 @@ def ForwardWarping(inputs, borderMode='repeat'):
     ])
 
     return res
+
+def get_mask(mapping, h, w):
+    """
+
+    # Arguments
+        mapping:
+
+    # Returns
+        mask: 
+    """
+
+    pass
