@@ -57,7 +57,7 @@ class Model(ModelDesc):
         # masks = []
         coords = get_coords(h, w)
         for i in range(cfg.frames):
-            mapping = coords - flows[i] * h / 4
+            mapping = coords - flows[i] * h / 2
             mask1 = tf.greater_equal(mapping, 0.0)
             mask2 = tf.less_equal(mapping, tf.constant([h-1, w-1], tf.float32))
             mask = tf.logical_and(mask1, mask2)
@@ -75,10 +75,10 @@ class Model(ModelDesc):
         # loss_me = tf.reduce_sum([masked_warp_loss[i] for i in range(cfg.frames)])
 
         # only normalization
-        # loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
+        loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
 
         # only warp loss
-        loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
+        # loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
 
         loss_sr = tf.reduce_sum([k[i] * euclidean_loss[i] for i in range(cfg.frames)])
         
@@ -110,8 +110,9 @@ class Model(ModelDesc):
     def _get_optimizer(self):
         lr = tf.get_variable('learning_rate', initializer=0.0001, trainable=True)
         tf.summary.scalar('lr', lr)
-        opt = tf.train.GradientDescentOptimizer(lr)
-        # opt = tf.train.AdamOptimizer(lr)
+        # opt = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
+        # opt = tf.train.GradientDescentOptimizer(lr)
+        opt = tf.train.AdamOptimizer(lr)
         return opt
 
 def get_data(train_or_test, batch_size):

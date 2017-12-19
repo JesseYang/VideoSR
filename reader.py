@@ -51,9 +51,10 @@ class Data(RNGDataFlow):
 
     def get_data(self):
         idxs = np.arange(len(self.imglist))
-        image_num = 0
-        for each_path_pair in self.imglist:
-            yield read_data(each_path_pair)
+        if self.shuffle:
+            self.rng.shuffle(idxs)
+        for k in idxs:
+            yield read_data(self.imglist[k])
 
     def reset_state(self):
         super(Data, self).reset_state()
