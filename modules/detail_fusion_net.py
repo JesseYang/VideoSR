@@ -27,7 +27,8 @@ def detail_fusion_net(hr_sparses, referenced):
                             kernel_shape = tuple([cfg.detail_fusion_net.encoder.k_size[layer_idx]] * 2),
                             stride = cfg.detail_fusion_net.encoder.stride[layer_idx],
                             padding = 'same',
-                            nl = tf.nn.relu
+                            nl = tf.nn.relu,
+                            W_init = tf.contrib.layers.xavier_initializer()
                             )
                 if layer_idx in [0, 2]:
                     skip_connections.append(tf.identity(l))
@@ -65,8 +66,9 @@ def detail_fusion_net(hr_sparses, referenced):
                                 kernel_shape = tuple([cfg.detail_fusion_net.decoder.k_size[layer_idx]] * 2),
                                 stride = cfg.detail_fusion_net.decoder.stride[layer_idx],
                                 padding = 'same',
-                                nl = tf.nn.relu
-                                )
+                                nl = tf.nn.relu,
+                                W_init = tf.contrib.layers.xavier_initializer()
+                    )
                 else:
                     l = Deconv2D('Deconv.{}'.format(layer_idx),
                                 l,
@@ -74,7 +76,9 @@ def detail_fusion_net(hr_sparses, referenced):
                                 kernel_shape = tuple([cfg.detail_fusion_net.decoder.k_size[layer_idx]] * 2),
                                 stride = cfg.detail_fusion_net.decoder.stride[layer_idx],
                                 padding = 'same',
-                                nl = tf.nn.relu)
+                                nl = tf.nn.relu,
+                                W_init = tf.contrib.layers.xavier_initializer()
+                    )
                     # skip connections
                     l = l + skip_connections.pop()
             l += upsampled_referenced

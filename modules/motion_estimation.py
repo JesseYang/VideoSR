@@ -44,9 +44,11 @@ def motion_estimation(reference, img):
     l = tf.concat((reference, img), axis = -1) # (b, h, w, 2)
     coarse_flow = coarse_flow_estimation(l) # (b, h, w, 2)
     coords = get_coords(h, w) # (b, h, w, 2)
-    mapping = coords - coarse_flow
+    # coarse_flow is (-1, 1)
+    mapping = coords - coarse_flow * h / 2
     sampled = BackwardWarping('warp.1', [reference, mapping], borderMode='constant') # (b, h, w, 1)
     l = tf.concat((reference, img, coarse_flow, sampled), axis = -1) # (b, h, w, 5)
     fine_flow = fine_flow_estimation(l) # (b, h, w, 2)
 
-    return coarse_flow + fine_flow # (b, h, w, 2)
+    # coarse_flow & fine_flow are both (-1, 1) (after tanh)
+    return coarse_flow + fine_flow # shape: (b, h, w, 2) range: ()

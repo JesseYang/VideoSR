@@ -4,5 +4,7 @@
 raw_data
 data
 *.ipynb_checkpoints
-data_*.txt
+*data_*.txt
 train_log
+*.png
+

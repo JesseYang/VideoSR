@@ -57,7 +57,7 @@ class Model(ModelDesc):
         # masks = []
         coords = get_coords(h, w)
         for i in range(cfg.frames):
-            mapping = coords - flows[i]
+            mapping = coords - flows[i] * h / 4
             mask1 = tf.greater_equal(mapping, 0.0)
             mask2 = tf.less_equal(mapping, tf.constant([h-1, w-1], tf.float32))
             mask = tf.logical_and(mask1, mask2)
@@ -75,10 +75,10 @@ class Model(ModelDesc):
         # loss_me = tf.reduce_sum([masked_warp_loss[i] for i in range(cfg.frames)])
 
         # only normalization
-        loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
+        # loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
 
         # only warp loss
-        # loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
+        loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
 
         loss_sr = tf.reduce_sum([k[i] * euclidean_loss[i] for i in range(cfg.frames)])
         
@@ -95,7 +95,7 @@ class Model(ModelDesc):
 
 # ========================================== Summary ==========================================
         tf.summary.image('groundtruth', hr_img, max_outputs=3)
-        tf.summary.image('frame_pair', tf.concat([reshaped[0], referenced, warped[0]], axis = 1), max_outputs = 3)
+        tf.summary.image('frame_pair', tf.concat([reshaped[0], referenced, warped[0]], axis = 2), max_outputs = 3)
         tf.summary.image('reference_frame', referenced, max_outputs=3)
         tf.summary.image('output', prediction, max_outputs=3)
         add_moving_summary([
