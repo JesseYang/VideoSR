@@ -65,7 +65,7 @@ class Model(ModelDesc):
             warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
             masked_warp_loss.append(tf.reduce_sum(tf.cast(mask, tf.float32) * tf.abs(reshaped[i] - warped[i])))
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
-            flow_loss.append(tf.reduce_sum(tf.abs(flows[i])))
+            flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i]))))
             euclidean_loss.append(tf.reduce_sum(tf.square(hr_img - hr_denses[i])))
 
         # mask + normalization
@@ -75,7 +75,10 @@ class Model(ModelDesc):
         # loss_me = tf.reduce_sum([masked_warp_loss[i] for i in range(cfg.frames)])
 
         # only normalization
-        loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
+        # loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
+        loss_me_1 = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
+        loss_me_2 = tf.reduce_sum([cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
+        loss_me = loss_me_1 + loss_me_2
 
         # only warp loss
         # loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
@@ -94,11 +97,14 @@ class Model(ModelDesc):
         self.cost = tf.identity(cost, name='cost')
 
 # ========================================== Summary ==========================================
-        tf.summary.image('groundtruth', hr_img, max_outputs=3)
-        tf.summary.image('frame_pair', tf.concat([reshaped[0], referenced, warped[0]], axis = 2), max_outputs = 3)
-        tf.summary.image('reference_frame', referenced, max_outputs=3)
-        tf.summary.image('output', prediction, max_outputs=3)
+        # tf.summary.image('groundtruth', hr_img, max_outputs=3)
+        tf.summary.image('frame_pair_1', tf.concat([referenced, warped[0], flows[0][:,:,:,:1], flows[0][:,:,:,1:], reshaped[0]], axis=2), max_outputs=3)
+        tf.summary.image('frame_pair_2', tf.concat([referenced, warped[1], flows[1][:,:,:,:1], flows[1][:,:,:,1:], reshaped[1]], axis=2), max_outputs=3)
+        # tf.summary.image('reference_frame', referenced, max_outputs=3)
+        # tf.summary.image('output', prediction, max_outputs=3)
         add_moving_summary([
+            tf.identity(loss_me_1, name = 'warp_loss'),
+            tf.identity(loss_me_2, name = 'flow_loss'),
             tf.identity(loss_me, name = 'loss_me'),
             tf.identity(loss_sr, name = 'loss_sr'),
             self.cost]
@@ -120,6 +126,8 @@ def get_data(train_or_test, batch_size):
     filename_list = cfg.train_list if isTrain else cfg.test_list
     ds = Data(filename_list, shuffle=isTrain, affine_trans=isTrain)
     ds = BatchData(ds, batch_size, remainder=not isTrain)
+    if isTrain:
+        ds = PrefetchDataZMQ(ds, min(6, multiprocessing.cpu_count()))
 
     return ds
 
@@ -156,7 +164,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
     parser.add_argument('--load', help='load model')
-    parser.add_argument('--batch_size', help='load model', default = 8)
+    parser.add_argument('--batch_size', help='load model', default = 64)
     parser.add_argument('--log_dir', help="directory of logging", default=None)
     args = parser.parse_args()
     if args.log_dir != None:

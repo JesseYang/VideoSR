@@ -20,8 +20,8 @@ def random_crop(imgs, crop_h, crop_w):
 def read_data(content):
     frame_paths = content.split(',')
     frames = [misc.imread(i, mode = 'L') for i in frame_paths]
-    # crop = Crop(crop_px = (H, W))
-    frames = [i[100:300,100:300] for i in frames] # random_crop(frames, H, W)
+    # frames = [i[100:300,100:300] for i in frames] # random_crop(frames, H, W)
+    frames = random_crop(frames, H, W)
     resized = (cv2.resize(i, (h, w)) for i in frames)
     resized = [np.reshape(i, (1, h, w, 1)) for i in resized]
     # frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
