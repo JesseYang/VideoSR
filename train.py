@@ -65,7 +65,7 @@ class Model(ModelDesc):
             warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
             masked_warp_loss.append(tf.reduce_sum(tf.cast(mask, tf.float32) * tf.abs(reshaped[i] - warped[i])))
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
-            flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i]))))
+            flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i] * h / 2))))
             euclidean_loss.append(tf.reduce_sum(tf.square(hr_img - hr_denses[i])))
 
         # mask + normalization
