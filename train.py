@@ -40,32 +40,38 @@ class Model(ModelDesc):
         flows = []
         with tf.variable_scope("ME_SPMC") as scope:
             for i in reshaped:
-                flow_i0 = motion_estimation(referenced, i)
+                flow_i0 = motion_estimation(referenced, i) * h / 2
                 flows.append(flow_i0)
                 hr_sparses.append(spmc_layer(i, flow_i0))
                 scope.reuse_variables()
         hr_denses = detail_fusion_net(hr_sparses, referenced)
         prediction = tf.identity(hr_denses[-1], name = 'predictions')
 
-        k = np.arange(*k_range, 0.5/cfg.frames)
+        k = np.arange(*k_range, 0.5 / cfg.frames)
 
         warped = []
+        mask_warped = []
         warp_loss = []
-        masked_warp_loss = []
+        mask_warp_loss = []
         flow_loss = []
         euclidean_loss = []
         # masks = []
         coords = get_coords(h, w)
         for i in range(cfg.frames):
-            mapping = coords - flows[i] * h / 2
-            mask1 = tf.greater_equal(mapping, 0.0)
-            mask2 = tf.less_equal(mapping, tf.constant([h-1, w-1], tf.float32))
-            mask = tf.logical_and(mask1, mask2)
-            # masks.append(mask)
+            mapping = coords - flows[i]
+            mask1 = tf.greater_equal(mapping[:,:,:,:1], 0.0)
+            mask2 = tf.less_equal(mapping[:,:,:,:1], h-1)
+            mask3 = tf.greater_equal(mapping[:,:,:,1:], 0.0)
+            mask4 = tf.less_equal(mapping[:,:,:,1:], w-1)
+            mask12 = tf.logical_and(mask1, mask2)
+            mask34 = tf.logical_and(mask3, mask4)
+            mask = tf.cast(tf.logical_and(mask12, mask34), tf.float32)
+
             warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
-            masked_warp_loss.append(tf.reduce_sum(tf.cast(mask, tf.float32) * tf.abs(reshaped[i] - warped[i])))
+            mask_warped.append(mask * warped[i])
+            mask_warp_loss.append(tf.reduce_sum(mask * tf.abs(reshaped[i] - warped[i])) / tf.reduce_sum(mask) * tf.reduce_sum(tf.ones_like(mask)))
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
-            flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i] * h / 2))))
+            flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i]))))
             euclidean_loss.append(tf.reduce_sum(tf.square(hr_img - hr_denses[i])))
 
         # mask + normalization
@@ -76,7 +82,7 @@ class Model(ModelDesc):
 
         # only normalization
         # loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
-        loss_me_1 = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
+        loss_me_1 = tf.reduce_sum([mask_warp_loss[i] for i in range(cfg.frames)])
         loss_me_2 = tf.reduce_sum([cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
         loss_me = loss_me_1 + loss_me_2
 
@@ -98,8 +104,8 @@ class Model(ModelDesc):
 
 # ========================================== Summary ==========================================
         # tf.summary.image('groundtruth', hr_img, max_outputs=3)
-        tf.summary.image('frame_pair_1', tf.concat([referenced, warped[0], flows[0][:,:,:,:1], flows[0][:,:,:,1:], reshaped[0]], axis=2), max_outputs=3)
-        tf.summary.image('frame_pair_2', tf.concat([referenced, warped[1], flows[1][:,:,:,:1], flows[1][:,:,:,1:], reshaped[1]], axis=2), max_outputs=3)
+        tf.summary.image('frame_pair_1', tf.concat([referenced, mask_warped[0], flows[0][:,:,:,:1], flows[0][:,:,:,1:], reshaped[0]], axis=2), max_outputs=3)
+        tf.summary.image('frame_pair_2', tf.concat([referenced, mask_warped[1], flows[1][:,:,:,:1], flows[1][:,:,:,1:], reshaped[1]], axis=2), max_outputs=3)
         # tf.summary.image('reference_frame', referenced, max_outputs=3)
         # tf.summary.image('output', prediction, max_outputs=3)
         add_moving_summary([
