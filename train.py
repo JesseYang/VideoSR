@@ -25,6 +25,7 @@ k_range = [0.5, 1.0]
 class Model(ModelDesc):
     def __init__(self, stage = None):
         self.stage = 1
+
     def _get_inputs(self):
         return [
             # (b, t, h, w, c)
@@ -32,6 +33,13 @@ class Model(ModelDesc):
             # (b, h, w, c)
             InputDesc(tf.float32, (None, None, None, 1), 'hr_img')
         ]
+
+    def _unorm(self, img, mask=None):
+        if mask == None:
+            return tf.cast((img + 0.5) * 255.0, dtype=tf.uint8)
+        else:
+            return tf.cast(mask * (img + 0.5) * 255.0, dtype=tf.uint8)
+
     def _build_graph(self, inputs):
         lr_imgs, hr_img = inputs
         # (b, t, h, w, c) to (b, h, w, c) * t
@@ -73,7 +81,7 @@ class Model(ModelDesc):
             mask = tf.cast(tf.logical_and(mask12, mask34), tf.float32)
 
             warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
-            mask_warped.append(mask * warped[i])
+            mask_warped.append(self._unorm(warped[i], mask))
             mask_warp_loss.append(tf.reduce_sum(mask * tf.abs(reshaped[i] - warped[i])) / tf.reduce_sum(mask) * tf.reduce_sum(tf.ones_like(mask)))
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
             flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i]))))
@@ -109,8 +117,8 @@ class Model(ModelDesc):
 
 # ========================================== Summary ==========================================
         # tf.summary.image('groundtruth', hr_img, max_outputs=3)
-        tf.summary.image('frame_pair_1', tf.concat([referenced, reshaped[0], mask_warped[0]], axis=1), max_outputs=3)
-        tf.summary.image('frame_pair_2', tf.concat([referenced, reshaped[1], mask_warped[1]], axis=1), max_outputs=3)
+        tf.summary.image('frame_pair_1', tf.concat([self._unorm(referenced), self._unorm(reshaped[0]), mask_warped[0]], axis=1), max_outputs=3)
+        tf.summary.image('frame_pair_2', tf.concat([self._unorm(referenced), self._unorm(reshaped[1]), mask_warped[1]], axis=1), max_outputs=3)
         tf.summary.image('flow_1', tf.concat([flows[0][:,:,:,:1], flows[0][:,:,:,1:]], axis=1), max_outputs=3)
         tf.summary.image('flow_2', tf.concat([flows[1][:,:,:,:1], flows[1][:,:,:,1:]], axis=1), max_outputs=3)
         # tf.summary.image('reference_frame', referenced, max_outputs=3)
@@ -175,7 +183,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='0,1')
+    parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='1')
     parser.add_argument('--load', help='load model')
     parser.add_argument('--batch_size', help='load model', default = 64)
     parser.add_argument('--log_dir', help="directory of logging", default=None)
