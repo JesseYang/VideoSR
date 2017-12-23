@@ -10,6 +10,10 @@ import tensorflow as tf
 from easydict import EasyDict as edict
 
 from tensorpack.tfutils.summary import *
+from tensorpack.train import (
+    TrainConfig, SyncMultiGPUTrainerParameterServer, launch_train_with_config)
+from tensorpack.tfutils import argscope, get_model_loader
+from tensorpack.utils.gpu import get_nr_gpu
 
 from utils import get_coords
 
@@ -111,12 +115,12 @@ class Model(ModelDesc):
         tf.summary.image('flow_2', tf.concat([flows[1][:,:,:,:1], flows[1][:,:,:,1:]], axis=1), max_outputs=3)
         # tf.summary.image('reference_frame', referenced, max_outputs=3)
         # tf.summary.image('output', prediction, max_outputs=3)
-        add_moving_summary([
+        add_moving_summary(
             tf.identity(loss_me_1, name = 'warp_loss'),
             tf.identity(loss_me_2, name = 'flow_loss'),
             tf.identity(loss_me, name = 'loss_me'),
             # tf.identity(loss_sr, name = 'loss_sr'),
-            # self.cost]
+            # self.cost
         )
     # TODO: apply `clip_by_norm` to ConvLSTM
     # def get_gradient_processor(self):
@@ -188,5 +192,7 @@ if __name__ == '__main__':
         BATCH_SIZE = BATCH_SIZE // NR_GPU
         config.nr_tower = NR_GPU
     if args.load:
-        config.session_init = SaverRestore(args.load)
-    SyncMultiGPUTrainer(config).train()
+        config.session_init = get_model_loader(args.load)
+    trainer = SyncMultiGPUTrainerParameterServer(max(get_nr_gpu(), 1))
+    launch_train_with_config(config, trainer)
+    # SyncMultiGPUTrainer(config).train()
