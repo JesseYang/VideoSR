@@ -33,7 +33,8 @@ class Model(ModelDesc):
         # (b, t, h, w, c) to (b, h, w, c) * t
         list_lr_imgs = tf.split(lr_imgs, cfg.frames, axis = 1)
         # reshaped = [tf.reshape(i, (-1, h, w, 1)) / 255.0 for i in list_lr_imgs]
-        reshaped = [tf.reshape(i, (-1, h, w, 1)) / 255.0 - 0.5 for i in list_lr_imgs]
+        reshaped = [tf.reshape(i, (-1, h, w, 1)) for i in list_lr_imgs]
+        reshaped = [i / 255.0 - 0.5 for i in reshaped]
         referenced = reshaped[cfg.frames // 2]
 
         hr_sparses = []
@@ -104,23 +105,25 @@ class Model(ModelDesc):
 
 # ========================================== Summary ==========================================
         # tf.summary.image('groundtruth', hr_img, max_outputs=3)
-        tf.summary.image('frame_pair_1', tf.concat([referenced, mask_warped[0], flows[0][:,:,:,:1], flows[0][:,:,:,1:], reshaped[0]], axis=2), max_outputs=3)
-        tf.summary.image('frame_pair_2', tf.concat([referenced, mask_warped[1], flows[1][:,:,:,:1], flows[1][:,:,:,1:], reshaped[1]], axis=2), max_outputs=3)
+        tf.summary.image('frame_pair_1', tf.concat([referenced, reshaped[0], mask_warped[0]], axis=1), max_outputs=3)
+        tf.summary.image('frame_pair_2', tf.concat([referenced, reshaped[1], mask_warped[1]], axis=1), max_outputs=3)
+        tf.summary.image('flow_1', tf.concat([flows[0][:,:,:,:1], flows[0][:,:,:,1:]], axis=1), max_outputs=3)
+        tf.summary.image('flow_2', tf.concat([flows[1][:,:,:,:1], flows[1][:,:,:,1:]], axis=1), max_outputs=3)
         # tf.summary.image('reference_frame', referenced, max_outputs=3)
         # tf.summary.image('output', prediction, max_outputs=3)
         add_moving_summary([
             tf.identity(loss_me_1, name = 'warp_loss'),
             tf.identity(loss_me_2, name = 'flow_loss'),
             tf.identity(loss_me, name = 'loss_me'),
-            tf.identity(loss_sr, name = 'loss_sr'),
-            self.cost]
+            # tf.identity(loss_sr, name = 'loss_sr'),
+            # self.cost]
         )
     # TODO: apply `clip_by_norm` to ConvLSTM
     # def get_gradient_processor(self):
     #     
 
     def _get_optimizer(self):
-        lr = tf.get_variable('learning_rate', initializer=0.0001, trainable=True)
+        lr = tf.get_variable('learning_rate', initializer=1e-4, trainable=True)
         tf.summary.scalar('lr', lr)
         # opt = tf.train.MomentumOptimizer(lr, 0.9, use_nesterov=True)
         # opt = tf.train.GradientDescentOptimizer(lr)

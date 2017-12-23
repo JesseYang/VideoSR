@@ -72,7 +72,7 @@ def detail_fusion_net(hr_sparses, referenced):
                 else:
                     l = Deconv2D('Deconv.{}'.format(layer_idx),
                                 l,
-                                out_shape = cfg.detail_fusion_net.decoder.ch_out[layer_idx],
+                                out_channel = cfg.detail_fusion_net.decoder.ch_out[layer_idx],
                                 kernel_shape = tuple([cfg.detail_fusion_net.decoder.k_size[layer_idx]] * 2),
                                 stride = cfg.detail_fusion_net.decoder.stride[layer_idx],
                                 padding = 'same',
