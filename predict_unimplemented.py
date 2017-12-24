@@ -17,7 +17,9 @@ except Exception:
     from reader import Data, CTCBatchData
     from cfgs.config import cfg
 
-def predict_one(img_path, predict_func, idx):
+def predict_one(img_paths, reference_idx, predict_func):
+    img_1 = 0
+    predict_func()
     pass
 def predict(args):
     sess_init = SaverRestore(args.model_path)
@@ -25,9 +27,14 @@ def predict(args):
     predict_config = PredictConfig(session_init=sess_init,
                                    model=model,
                                    input_names=['lr_imgs'],
-                                   output_names=["predictions"])
+                                   output_names=[
+                                        'flows',
+                                        'predictions'
+                                    ])
     predict_func = OfflinePredictor(predict_config)
-    pass
+    if os.path.isfile(args.input):
+    
+    if os.path.isdir(args.input):
 
 
 if __name__ == '__main__':

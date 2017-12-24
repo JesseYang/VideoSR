@@ -51,25 +51,34 @@ class Model(ModelDesc):
 
         hr_sparses = []
         flows = []
+        warped = []
+
+        coords = get_coords(h, w)
         with tf.variable_scope("ME_SPMC") as scope:
             for i in reshaped:
                 flow_i0 = motion_estimation(referenced, i) * h / 2
                 flows.append(flow_i0)
                 hr_sparses.append(spmc_layer(i, flow_i0))
+                mapping = coords - flow_i0
+                warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
                 scope.reuse_variables()
         hr_denses = detail_fusion_net(hr_sparses, referenced)
+
+        # ========================== OUTPUT ==========================
+        flow_after_reshape = [tf.reshape(i, (-1, 1, h, w, 2)) for i in flows]
+        tf_flows = tf.concat(flow_after_reshape, axis = 1, name = 'flows')
+        warped_after_reshape = [tf.reshape(i, (-1, 1, h, w, 1)) for i in warped]
+        after_warp = tf.concat(warped_after_reshape, axis = 1, name = 'after_warp')
         prediction = tf.identity(hr_denses[-1], name = 'predictions')
 
         k = np.arange(*k_range, 0.5 / cfg.frames)
 
-        warped = []
         mask_warped = []
         warp_loss = []
         mask_warp_loss = []
         flow_loss = []
         euclidean_loss = []
         # masks = []
-        coords = get_coords(h, w)
         for i in range(cfg.frames):
             mapping = coords - flows[i]
             mask1 = tf.greater_equal(mapping[:,:,:,:1], 0.0)
@@ -80,7 +89,6 @@ class Model(ModelDesc):
             mask34 = tf.logical_and(mask3, mask4)
             mask = tf.cast(tf.logical_and(mask12, mask34), tf.float32)
 
-            warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
             mask_warped.append(self._unorm(warped[i], mask))
             mask_warp_loss.append(tf.reduce_sum(mask * tf.abs(reshaped[i] - warped[i])) / tf.reduce_sum(mask) * tf.reduce_sum(tf.ones_like(mask)))
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
