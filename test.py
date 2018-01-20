@@ -70,8 +70,6 @@ def UTILS_forward_warping():
         misc.imsave('img.png', img)
         misc.imsave('forward_warped.png', res)
 
-
-
 # ME
 from modules.motion_estimation import *
 def ME_coarse_flow_estimation():

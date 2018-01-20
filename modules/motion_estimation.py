@@ -3,7 +3,7 @@ from tensorpack import ImageSample as BackwardWarping
 from cfgs.config import cfg
 import tensorflow as tf
 import numpy as np
-from utils import get_coords
+from utils import *
 
 h = cfg.h
 w = cfg.w

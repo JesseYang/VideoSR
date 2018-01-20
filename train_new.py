@@ -29,9 +29,9 @@ class Model(ModelDesc):
     def _get_inputs(self):
         return [
             # (b, t, h, w, c)
-            InputDesc(tf.float32, (None, None, None, None, 1), 'lr_imgs'),
+            InputDesc(tf.float32, (None, None, None, None, 3), 'lr_imgs'),
             # (b, h, w, c)
-            InputDesc(tf.float32, (None, None, None, 1), 'hr_img')
+            InputDesc(tf.float32, (None, None, None, 3), 'hr_img')
         ]
 
     def _unorm(self, img, mask=None):
@@ -41,13 +41,18 @@ class Model(ModelDesc):
             return tf.cast(mask * (img + 0.5) * 255.0, dtype=tf.uint8)
 
     def _build_graph(self, inputs):
-        lr_imgs, hr_img = inputs
+        lr_rgb, hr_rgb = inputs
+        lr_y, hr_y = rgb2y(lr_imgs_rgb), rgb2y(hr_img_rgb)
         # (b, t, h, w, c) to (b, h, w, c) * t
-        list_lr_imgs = tf.split(lr_imgs, cfg.frames, axis = 1)
-        # reshaped = [tf.reshape(i, (-1, h, w, 1)) / 255.0 for i in list_lr_imgs]
-        reshaped = [tf.reshape(i, (-1, h, w, 1)) for i in list_lr_imgs]
-        reshaped = [i / 255.0 - 0.5 for i in reshaped]
-        referenced = reshaped[cfg.frames // 2]
+        lr_y = tf.split(lr_y, cfg.frames, axis = 1)
+        lr_rgb = tf.split(lr_rgb, cfg.frames, axis = 1)
+
+        lr_y = [i / 255.0 - 0.5 for i in lr_y]
+        lr_rgb = [i / 255.0 - 0.5 for i in lr_rgb]
+
+        referenced_rgb = lr_rgb[cfg.frames // 2]
+        referenced_y = lr_y[cfg.frames // 2]
+
 
         hr_sparses = []
         flows = []
@@ -55,14 +60,17 @@ class Model(ModelDesc):
 
         coords = get_coords(h, w)
         with tf.variable_scope("ME_SPMC") as scope:
-            for i in reshaped:
-                flow_i0 = motion_estimation(referenced, i) * h / 2
+            for i, j in zip(lr_y, lr_rgb):
+                flow_i0 = motion_estimation(referenced_y, i) * h / 2
+                if self.stage == 2:
+                    flow_i0 = tf.stop_gradient(flow_i0)
                 flows.append(flow_i0)
-                hr_sparses.append(spmc_layer(i, flow_i0))
+                hr_sparses.append(spmc_layer(j, flow_i0))
                 mapping = coords - flow_i0
-                warped.append(BackwardWarping('backward_warpped', [referenced, mapping], borderMode='constant'))
+                backward_warped_img = BackwardWarping('backward_warpped', [referenced_rgb, mapping], borderMode='constant')
+                warped.append(backward_warped_img)
                 scope.reuse_variables()
-        hr_denses = detail_fusion_net(hr_sparses, referenced)
+        hr_denses = detail_fusion_net(hr_sparses, referenced_rgb)
 
         # ========================== OUTPUT ==========================
         flow_after_reshape = [tf.reshape(i, (-1, 1, h, w, 2)) for i in flows]
@@ -94,21 +102,10 @@ class Model(ModelDesc):
             warp_loss.append(tf.reduce_sum(tf.abs(reshaped[i] - warped[i])))
             flow_loss.append(tf.reduce_sum(tf.abs(tf.image.total_variation(flows[i]))))
             euclidean_loss.append(tf.reduce_sum(tf.square(hr_img - hr_denses[i])))
-        print(flows[0])
-        # mask + normalization
-        # loss_me = tf.reduce_sum([masked_warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
 
-        # only mask
-        # loss_me = tf.reduce_sum([masked_warp_loss[i] for i in range(cfg.frames)])
-
-        # only normalization
-        # loss_me = tf.reduce_sum([warp_loss[i] + cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
         loss_me_1 = tf.reduce_sum([mask_warp_loss[i] for i in range(cfg.frames)])
         loss_me_2 = tf.reduce_sum([cfg.lambda1 * flow_loss[i] for i in range(cfg.frames)])
         loss_me = loss_me_1 + loss_me_2
-
-        # only warp loss
-        # loss_me = tf.reduce_sum([warp_loss[i] for i in range(cfg.frames)])
 
         loss_sr = tf.reduce_sum([k[i] * euclidean_loss[i] for i in range(cfg.frames)])
         
@@ -178,13 +175,10 @@ def get_config(args):
     #                             [(0, 1e-4), (3, 2e-4), (6, 3e-4), (10, 6e-4), (15, 1e-3), (60, 1e-4), (90, 1e-5)]),
         HumanHyperParamSetter('learning_rate')
     ]
-    config = edict()
-    config.stage = 1
-
     return TrainConfig(
         dataflow = ds_train,
         callbacks = callbacks,
-        model = Model(stage = 1),
+        model = Model(stage = args.stage),
         max_epoch = cfg.me_max_iteration * batch_size - ds_train.size()
     )
 
@@ -194,6 +188,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--gpu', help='comma separated list of GPU(s) to use.', default='1')
     parser.add_argument('--load', help='load model')
+    parser.add_argument('--stage', help='train stage', default = 1)
     parser.add_argument('--batch_size', help='load model', default = 64)
     parser.add_argument('--log_dir', help="directory of logging", default=None)
     args = parser.parse_args()

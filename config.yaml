@@ -1,0 +1,10 @@
+data:
+  own: 
+    path: 'frame_seq_data/VideoSR'
+  
+  MPI-Sintel_train:
+    path: 'frame_seq_data/MPI-Sintel/training/final'
+    prefix: 'frame_'
+  
+  # youtube_videoes: 'frame_seq_data/youtube_videos'
+  # MPI-Sintel_test: 'frame_seq_data/MPI-Sintel/test/final'

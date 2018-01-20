@@ -3,6 +3,8 @@
 *.DS_Store
 raw_data
 data
+frame_seq_data
+video_data
 *.ipynb_checkpoints
 *data_*.txt
 train_log
