@@ -48,6 +48,8 @@ class Model(ModelDesc):
         reshaped = [tf.reshape(i, (-1, h, w, 1)) for i in list_lr_imgs]
         reshaped = [i / 255.0 - 0.5 for i in reshaped]
         referenced = reshaped[cfg.frames // 2]
+        print('referenced,' referenced)
+        print(reshaped)
 
         hr_sparses = []
         flows = []
@@ -120,6 +122,7 @@ class Model(ModelDesc):
             cost = loss_sr + cfg.lambda2 * loss_me
         else:
             raise RuntimeError()
+        cost = loss_sr
 
         self.cost = tf.identity(cost, name='cost')
 

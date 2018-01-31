@@ -50,16 +50,8 @@ def get_neighbours(coords):
     
     return coords_upper_left, coords_upper_right, coords_lower_left, coords_lower_right
 
-def rgb2y(inputs):
-    with tf.name_scope('rgb2y'):
-        if inputs.get_shape()[-1].value == 1:
-            return inputs
-        assert inputs.get_shape()[-1].value == 3, 'Error: rgb2y input should be RGB or grayscale!'
-        dims = len(inputs.get_shape())
-        if dims == 4:
-            scale = tf.reshape([65.481, 128.553, 24.966], [1, 1, 1, 3]) / 255.0
-        elif dims == 5:
-            scale = tf.reshape([65.481, 128.553, 24.966], [1, 1, 1, 1, 3]) / 255.0
-        output = tf.reduce_sum(inputs * scale, reduction_indices=dims - 1, keep_dims=True)
-        output = output + 16 / 255.0
-    return output
+
+if __name__ == '__main__':
+    a = tf.placeholder(tf.float32, (5,4,500, 500, 3))
+    b = rgb2y(a)
+    print(b)

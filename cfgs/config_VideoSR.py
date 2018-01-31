@@ -37,7 +37,7 @@ cfg.detail_fusion_net.decoder.type = ['conv', 'deconv', 'conv', 'deconv', 'conv'
 # Train
 # Motion Estimation
 cfg.lambda1 = 0.01
-cfg.lambda2 = 1
+cfg.lambda2 = 1e+11
 cfg.me_max_iteration = 70000
 cfg.me_batch_size = 0
 cfg.spmc_max_iteration = 20000

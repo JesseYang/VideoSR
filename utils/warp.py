@@ -72,3 +72,18 @@ def ForwardWarping(inputs, borderMode='repeat'):
     ])
 
     return res
+
+def resize_images(images, size, method=2, align_corners=False):
+    dims = len(images.get_shape())
+    if dims == 5:
+        n = tf.shape(images)[0]
+        t = tf.shape(images)[1]
+        h = tf.shape(images)[2]
+        w = tf.shape(images)[3]
+        c = tf.shape(images)[4]
+        # n, t, h, w, c = images.get_shape().as_list()
+        images = tf.reshape(images, [n * t, h, w, c])
+    images = tf.image.resize_images(images, size, method, align_corners)
+    if dims == 5:
+        images = tf.reshape(images, [n, t, size[0], size[1], c])
+    return images

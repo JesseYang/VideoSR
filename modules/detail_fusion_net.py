@@ -41,12 +41,14 @@ def detail_fusion_net(hr_sparses, referenced):
     # ConvLSTM
     # ====================
     temporal = tf.concat(encoded, axis = 1)
+    print('temporal', temporal)
     shape = [H // 4, W // 4]
     filters = 128
     kernel = [3, 3]
-    cell = ConvLSTMCell(shape, filters, kernel, activation = tf.nn.relu)
 
-    temporal_outputs, state = tf.nn.dynamic_rnn(cell, temporal, dtype = l.dtype)
+    with tf.variable_scope('ConvLSTM') as scope:
+        cell = ConvLSTMCell(shape, filters, kernel, activation = tf.nn.relu)
+        temporal_outputs, state = tf.nn.dynamic_rnn(cell, temporal, dtype = l.dtype)
 
     list_temporal_outputs = tf.split(temporal_outputs, cfg.frames, axis = 1)
 

@@ -42,6 +42,7 @@ def motion_estimation(reference, img):
     """compute optical flow from img to reference
     """
     l = tf.concat((reference, img), axis = -1) # (b, h, w, 2)
+    print('l',l)
     coarse_flow = coarse_flow_estimation(l) # (b, h, w, 2)
     coords = get_coords(h, w) # (b, h, w, 2)
     # coarse_flow is (-1, 1)

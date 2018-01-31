@@ -13,21 +13,23 @@ def random_crop(imgs, crop_h, crop_w):
 
     h_start = random.randint(0, h - crop_h - 1)
     w_start = random.randint(0, w - crop_w - 1)
-
-    res = [img[h_start:h_start + crop_h, w_start:w_start + crop_w] for img in imgs]
+    try:
+        res = [img[h_start:h_start + crop_h, w_start:w_start + crop_w] for img in imgs]
+    except Exception:
+        print(imgs[0].shape)
+        quit()
     
     return res
 def read_data(content):
-    frame_paths = content.split(',')
-    frames = [misc.imread(i, mode = 'L') for i in frame_paths]
+    frame_paths = content.split('<split>')
+    frames = [misc.imread(i) for i in frame_paths]
     # frames = [i[100:300,100:300] for i in frames] # random_crop(frames, H, W)
     frames = random_crop(frames, H, W)
     resized = (cv2.resize(i, (h, w)) for i in frames)
-    resized = [np.reshape(i, (1, h, w, 1)) for i in resized]
-    # frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
+    # resized = [np.reshape(i, (1, h, w, 1)) for i in resized]
+    # # frames = [np.reshape(i, (1, H, W, 1)) for i in frames]
     referenced = frames[cfg.frames // 2]
-    referenced = np.reshape(referenced, (H, W, 1))
-    return [np.concatenate(resized, axis=0), referenced]
+    return [np.stack(resized, axis = 0), referenced]
 
 class Data(RNGDataFlow):
     def __init__(self, filename_list, shuffle, affine_trans):
@@ -62,7 +64,15 @@ class Data(RNGDataFlow):
 
 if __name__ == '__main__':
     df = Data('data_train.txt', shuffle=False, affine_trans=False)
+    df = BatchData(df, 64, remainder=not True)
     df.reset_state()
     g = df.get_data()
     for i in g:
         print(i[0].shape, i[1].shape)
+
+
+
+
+
+
+

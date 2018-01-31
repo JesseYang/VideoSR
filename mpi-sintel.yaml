@@ -1,0 +1,65 @@
+alley_1:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/alley_1'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/alley_1'
+    prefix: 'frame_'
+
+alley_2:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/alley_2'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/alley_2'
+    prefix: 'frame_'
+
+ambush_2:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/ambush_2'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/ambush_2'
+    prefix: 'frame_'
+
+ambush_4:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/ambush_4'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/ambush_4'
+    prefix: 'frame_'
+
+ambush_5:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/ambush_5'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/ambush_5'
+    prefix: 'frame_'
+
+ambush_6:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/ambush_6'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/ambush_6'
+    prefix: 'frame_'
+
+ambush_7:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/ambush_7'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/ambush_7'
+    prefix: 'frame_'
+
+bamboo_1:
+  frames:
+    path: 'frame_seq_data/MPI-Sintel/training/clean/bamboo_1'
+    prefix: 'frame_'
+  label:
+    path: 'frame_seq_data/MPI-Sintel/training/flow/bamboo_1'
+    prefix: 'frame_'
+
+bamboo_2:
